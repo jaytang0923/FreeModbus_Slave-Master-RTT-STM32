@@ -23,46 +23,71 @@
 #include "mb.h"
 #include "mbport.h"
 
+
 /* ----------------------- Variables ----------------------------------------*/
-static struct rt_event     xSlaveOsEvent;
+static EventGroupHandle_t xSlaveOsEvent;
 /* ----------------------- Start implementation -----------------------------*/
-BOOL
-xMBPortEventInit( void )
+BOOL xMBPortEventInit(void)
 {
-    rt_event_init(&xSlaveOsEvent,"slave event",RT_IPC_FLAG_PRIO);
-    return TRUE;
-}
-
-BOOL
-xMBPortEventPost( eMBEventType eEvent )
-{
-    rt_event_send(&xSlaveOsEvent, eEvent);
-    return TRUE;
-}
-
-BOOL
-xMBPortEventGet( eMBEventType * eEvent )
-{
-    rt_uint32_t recvedEvent;
-    /* waiting forever OS event */
-    rt_event_recv(&xSlaveOsEvent,
-            EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT,
-            RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, RT_WAITING_FOREVER,
-            &recvedEvent);
-    switch (recvedEvent)
+    xSlaveOsEvent = xEventGroupCreate();
+    if (xSlaveOsEvent != NULL)
     {
-    case EV_READY:
-        *eEvent = EV_READY;
-        break;
-    case EV_FRAME_RECEIVED:
-        *eEvent = EV_FRAME_RECEIVED;
-        break;
-    case EV_EXECUTE:
-        *eEvent = EV_EXECUTE;
-        break;
-    case EV_FRAME_SENT:
-        *eEvent = EV_FRAME_SENT;
-        break;
+        MODBUS_DEBUG("xMBPortEventInit Success!\r\n");
+    }
+    else
+    {
+        MODBUS_DEBUG("xMBPortEventInit Faild !\r\n");
+        return FALSE;
     }
     return TRUE;
 }
+
+BOOL xMBPortEventPost(eMBEventType eEvent)
+{
+    BaseType_t flag;
+    MODBUS_DEBUG("Post eEvent=%d!\r\n", eEvent);
+    if (xSlaveOsEvent != NULL)
+    {
+        if (IS_IRQ())
+        {
+            xEventGroupSetBitsFromISR(xSlaveOsEvent, eEvent, &flag);
+        }
+        else
+        {
+            xEventGroupSetBits(xSlaveOsEvent, eEvent);
+        }
+    }
+    return TRUE;
+}
+
+BOOL xMBPortEventGet(eMBEventType *eEvent)
+{
+    uint32_t recvedEvent;
+    /* waiting forever OS event */
+    recvedEvent = xEventGroupWaitBits(xSlaveOsEvent,
+                                      EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE |
+                                      EV_FRAME_SENT, /* 接收任务感兴趣的事件
+                                                        */
+                                      pdTRUE,  /* 退出时清除事件?? */
+                                      pdFALSE, /* 满足感兴趣的所有事?? */
+                                      portMAX_DELAY); /* 指定超时事件,无限等待 */
+
+    switch (recvedEvent)
+    {
+        case EV_READY:
+            *eEvent = EV_READY;
+            break;
+        case EV_FRAME_RECEIVED:
+            *eEvent = EV_FRAME_RECEIVED;
+            break;
+        case EV_EXECUTE:
+            *eEvent = EV_EXECUTE;
+            break;
+        case EV_FRAME_SENT:
+            *eEvent = EV_FRAME_SENT;
+            break;
+    }
+    MODBUS_DEBUG("Get eEvent=%d!\r\n", recvedEvent);
+    return TRUE;
+}
+

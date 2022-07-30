@@ -24,147 +24,130 @@
 /* ----------------------- Modbus includes ----------------------------------*/
 #include "mb.h"
 #include "mbport.h"
-#include "rtdevice.h"
-#include "bsp.h"
+#include "serial.h"
 
 /* ----------------------- Static variables ---------------------------------*/
-ALIGN(RT_ALIGN_SIZE)
-/* software simulation serial transmit IRQ handler thread stack */
-static rt_uint8_t serial_soft_trans_irq_stack[512];
 /* software simulation serial transmit IRQ handler thread */
-static struct rt_thread thread_serial_soft_trans_irq;
+static TaskHandle_t thread_serial_soft_trans_irq = NULL;
 /* serial event */
-static struct rt_event event_serial;
+static EventGroupHandle_t event_serial;
 /* modbus slave serial device */
-static rt_serial_t *serial;
+void Slave_RxCpltCallback(void);
 
+/*
+ * Serial FIFO mode
+ */
+
+static volatile uint8_t rx_buff[FIFO_SIZE_MAX];
+static Serial_fifo Slave_serial_rx_fifo;
 /* ----------------------- Defines ------------------------------------------*/
 /* serial transmit event */
-#define EVENT_SERIAL_TRANS_START    (1<<0)
+#define EVENT_SERIAL_TRANS_START (1 << 0)
 
 /* ----------------------- static functions ---------------------------------*/
 static void prvvUARTTxReadyISR(void);
 static void prvvUARTRxISR(void);
-static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size);
-static void serial_soft_trans_irq(void* parameter);
+static void serial_soft_trans_irq(void *parameter);
 
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
-        eMBParity eParity)
+                       eMBParity eParity)
 {
     /**
      * set 485 mode receive and transmit control IO
      * @note MODBUS_SLAVE_RT_CONTROL_PIN_INDEX need be defined by user
      */
-    rt_pin_mode(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
+    // rt_pin_mode(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
 
     /* set serial name */
-    if (ucPORT == 1) {
-#if defined(RT_USING_UART1) || defined(RT_USING_REMAP_UART1)
-        extern struct rt_serial_device serial1;
-        serial = &serial1;
-#endif
-    } else if (ucPORT == 2) {
-#if defined(RT_USING_UART2)
-        extern struct rt_serial_device serial2;
-        serial = &serial2;
-#endif
-    } else if (ucPORT == 3) {
-#if defined(RT_USING_UART3)
-        extern struct rt_serial_device serial3;
-        serial = &serial3;
-#endif
-    }
-    /* set serial configure parameter */
-    serial->config.baud_rate = ulBaudRate;
-    serial->config.stop_bits = STOP_BITS_1;
-    switch(eParity){
-    case MB_PAR_NONE: {
-        serial->config.data_bits = DATA_BITS_8;
-        serial->config.parity = PARITY_NONE;
-        break;
-    }
-    case MB_PAR_ODD: {
-        serial->config.data_bits = DATA_BITS_9;
-        serial->config.parity = PARITY_ODD;
-        break;
-    }
-    case MB_PAR_EVEN: {
-        serial->config.data_bits = DATA_BITS_9;
-        serial->config.parity = PARITY_EVEN;
-        break;
-    }
-    }
-    /* set serial configure */
-    serial->ops->configure(serial, &(serial->config));
 
-    /* open serial device */
-    if (!serial->parent.open(&serial->parent,
-            RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX )) {
-        serial->parent.rx_indicate = serial_rx_ind;
-    } else {
-        return FALSE;
-    }
-
+    /*registe recieve callback*/
+//  HAL_UART_RegisterCallback(serial, HAL_UART_RX_COMPLETE_CB_ID,
+//                            Slave_RxCpltCallback);
+    serialRegisterCallback(0, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
+    serialinit(0, 115200);
     /* software initialize */
-    rt_event_init(&event_serial, "slave event", RT_IPC_FLAG_PRIO);
-    rt_thread_init(&thread_serial_soft_trans_irq,
-                   "slave trans",
-                   serial_soft_trans_irq,
-                   RT_NULL,
-                   serial_soft_trans_irq_stack,
-                   sizeof(serial_soft_trans_irq_stack),
-                   10, 5);
-    rt_thread_startup(&thread_serial_soft_trans_irq);
+    Slave_serial_rx_fifo.buffer = rx_buff;
+    Slave_serial_rx_fifo.get_index = 0;
+    Slave_serial_rx_fifo.put_index = 0;
 
+    /* ????????*/
+    event_serial = xEventGroupCreate(); //????
+    if (NULL != event_serial)
+    {
+        MODBUS_DEBUG("Create Slave event_serial Event success!\r\n");
+    }
+    else
+    {
+        MODBUS_DEBUG("Create Slave event_serial Event  Faild!\r\n");
+        assert_param(0);
+    }
+    BaseType_t xReturn =
+        xTaskCreate((TaskFunction_t)serial_soft_trans_irq, /* ????*/
+                    (const char *)"slave trans",           /* ????*/
+                    (uint16_t)128,                         /* ?*/
+                    (void *)NULL,                          /* ???? */
+                    (UBaseType_t)12,                       /* ???*/
+                    (TaskHandle_t *)&thread_serial_soft_trans_irq); /*????*/
+
+    if (xReturn == pdPASS)
+    {
+        MODBUS_DEBUG("xTaskCreate slave trans success\r\n");
+    }
     return TRUE;
 }
 
 void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 {
-    rt_uint32_t recved_event;
+//    __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_RXNE);
+//   __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_TC);
+    // TODO: clean flags
     if (xRxEnable)
     {
         /* enable RX interrupt */
-        serial->ops->control(serial, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
+//    __HAL_UART_ENABLE_IT(serial, UART_IT_RXNE);
+        endisSerialRecvIRQ(0, 1);
         /* switch 485 to receive mode */
-        rt_pin_write(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_LOW);
+        MODBUS_DEBUG("RS232_RX_MODE\r\n");
+//    SLAVE_RS485_RX_MODE;
     }
     else
     {
         /* switch 485 to transmit mode */
-        rt_pin_write(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_HIGH);
+        MODBUS_DEBUG("RS232_TX_MODE\r\n");
+//    SLAVE_RS485_TX_MODE;
         /* disable RX interrupt */
-        serial->ops->control(serial, RT_DEVICE_CTRL_CLR_INT, (void *)RT_DEVICE_FLAG_INT_RX);
+        endisSerialRecvIRQ(0, 0);
     }
     if (xTxEnable)
     {
         /* start serial transmit */
-        rt_event_send(&event_serial, EVENT_SERIAL_TRANS_START);
+        xEventGroupSetBits(event_serial, EVENT_SERIAL_TRANS_START);
     }
     else
     {
         /* stop serial transmit */
-        rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START,
-                RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, 0,
-                &recved_event);
+        xEventGroupClearBits(event_serial, EVENT_SERIAL_TRANS_START);
+        /*????*/
+        // printf("ms=%.2f,fps=%.2f\r\n", __HAL_TIM_GetCounter(&htim7) / 100.f,
+        // 1000.f / (__HAL_TIM_GetCounter(&htim7) / 100.f));
     }
 }
 
 void vMBPortClose(void)
 {
-    serial->parent.close(&(serial->parent));
+    serialclose(0);
 }
-
+/*Send a byte*/
 BOOL xMBPortSerialPutByte(CHAR ucByte)
 {
-    serial->parent.write(&(serial->parent), 0, &ucByte, 1);
+    serialputc(0, ucByte);
     return TRUE;
 }
-
-BOOL xMBPortSerialGetByte(CHAR * pucByte)
+/*Get a byte from fifo*/
+BOOL xMBPortSerialGetByte(CHAR *pucByte)
 {
-    serial->parent.read(&(serial->parent), 0, pucByte, 1);
+    Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
     return TRUE;
 }
 
@@ -196,27 +179,53 @@ void prvvUARTRxISR(void)
  *
  * @param parameter parameter
  */
-static void serial_soft_trans_irq(void* parameter) {
-    rt_uint32_t recved_event;
+static void serial_soft_trans_irq(void *parameter)
+{
+    //uint32_t recved_event;
     while (1)
     {
         /* waiting for serial transmit start */
-        rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START, RT_EVENT_FLAG_OR,
-                RT_WAITING_FOREVER, &recved_event);
+        xEventGroupWaitBits(event_serial,             /* ?????? */
+                            EVENT_SERIAL_TRANS_START, /* ?????????? */
+                            pdFALSE,                  /* ????????? */
+                            pdFALSE,        /* ??????????? */
+                            portMAX_DELAY); /* ??????,???? */
         /* execute modbus callback */
         prvvUARTTxReadyISR();
     }
 }
 
 /**
- * This function is serial receive callback function
- *
- * @param dev the device of serial
- * @param size the data size that receive
- *
- * @return return RT_EOK
+ * @brief  Rx Transfer completed callbacks.
+ * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
+ *                the configuration information for the specified UART module.
+ * @retval None
  */
-static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size) {
+void Slave_RxCpltCallback(void)
+{
+    int ch = -1;
+#if 0
+    do
+    {
+        ch = serialgetc(0);
+        if (ch == -1)
+            break;
+        printf("%02X ", ch);
+        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
+    }
+    while (1);
+#else
+    /*
+    do not take too much time,in case of T35 timeout.
+    */
+    do
+    {
+        ch = serialgetc(0);
+        if (ch == -1)
+            break;
+        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
+    }
+    while (0);
+#endif
     prvvUARTRxISR();
-    return RT_EOK;
 }

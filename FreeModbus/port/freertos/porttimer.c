@@ -27,37 +27,55 @@
 #include "mbport.h"
 
 /* ----------------------- static functions ---------------------------------*/
-static struct rt_timer timer;
+static TimerHandle_t timer;
 static void prvvTIMERExpiredISR(void);
-static void timer_timeout_ind(void* parameter);
-
+static void timer_timeout_ind(xTimerHandle xTimer);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
-    rt_timer_init(&timer, "slave timer",
-                   timer_timeout_ind, /* bind timeout callback function */
-                   RT_NULL,
-                   (50 * usTim1Timerout50us) / (1000 * 1000 / RT_TICK_PER_SECOND) + 1,
-                   RT_TIMER_FLAG_ONE_SHOT); /* one shot */
-    return TRUE;
+    /*
+    Freertos can't create timer in isr!
+    So,I use hardware timer here! £¡Freq=1Mhz
+    */
+    timer = xTimerCreate(
+                "Slave timer",
+                (50 * usTim1Timerout50us) / (1000 * 1000 / configTICK_RATE_HZ) + 1,
+                pdFALSE, (void *)2, timer_timeout_ind);
+    if (timer != NULL)
+        return TRUE;
 }
 
 void vMBPortTimersEnable()
 {
-    rt_timer_start(&timer);
+    printf("%d ET\n", osKernelGetTickCount());
+    if (IS_IRQ())
+    {
+        xTimerStartFromISR((TimerHandle_t)timer, 0);
+    }
+    else
+    {
+        xTimerStart((TimerHandle_t)timer, 0);
+    }
 }
 
 void vMBPortTimersDisable()
 {
-    rt_timer_stop(&timer);
+    if (IS_IRQ())
+    {
+        xTimerStopFromISR((TimerHandle_t)timer, 0);
+    }
+    else
+    {
+        xTimerStop((TimerHandle_t)timer, 0);
+    }
+    printf("%d DT\n", osKernelGetTickCount());
 }
 
 void prvvTIMERExpiredISR(void)
 {
-    (void) pxMBPortCBTimerExpired();
+    (void)pxMBPortCBTimerExpired();
 }
-
-static void timer_timeout_ind(void* parameter)
+static void timer_timeout_ind(xTimerHandle xTimer)
 {
     prvvTIMERExpiredISR();
 }

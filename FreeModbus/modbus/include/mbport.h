@@ -39,7 +39,9 @@ PR_BEGIN_EXTERN_C
 /* ----------------------- Defines ------------------------------------------*/
 
 /* ----------------------- Type definitions ---------------------------------*/
-
+#ifdef PR_BEGIN_EXTERN_C
+#define JAY         ;
+#endif
 typedef enum
 {
     EV_READY            = 1<<0,         /*!< Startup finished. */
