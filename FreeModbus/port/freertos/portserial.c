@@ -147,7 +147,12 @@ BOOL xMBPortSerialPutByte(CHAR ucByte)
 /*Get a byte from fifo*/
 BOOL xMBPortSerialGetByte(CHAR *pucByte)
 {
-    Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
+    //Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
+    int ch = serialgetc(0);
+    if (ch != -1)
+    {
+        *pucByte = (CHAR)ch & 0xff;
+    }
     return TRUE;
 }
 
@@ -203,8 +208,9 @@ static void serial_soft_trans_irq(void *parameter)
  */
 void Slave_RxCpltCallback(void)
 {
-    int ch = -1;
 #if 0
+    int ch = -1;
+
     do
     {
         ch = serialgetc(0);
@@ -215,17 +221,18 @@ void Slave_RxCpltCallback(void)
     }
     while (1);
 #else
+    // int ch = -1;
     /*
     do not take too much time,in case of T35 timeout.
     */
-    do
-    {
-        ch = serialgetc(0);
-        if (ch == -1)
-            break;
-        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
-    }
-    while (0);
+//    do
+//    {
+//        ch = serialgetc(0);
+//        if (ch == -1)
+//            break;
+//        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
+//    }
+//    while (0);
 #endif
     prvvUARTRxISR();
 }
