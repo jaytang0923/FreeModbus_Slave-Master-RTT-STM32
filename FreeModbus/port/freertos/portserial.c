@@ -85,7 +85,7 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
     BaseType_t xReturn =
         xTaskCreate((TaskFunction_t)serial_soft_trans_irq, /* ????*/
                     (const char *)"slave trans",           /* ????*/
-                    (uint16_t)128,                         /* ?*/
+                    (uint16_t)256,                         /* ?*/
                     (void *)NULL,                          /* ???? */
                     (UBaseType_t)12,                       /* ???*/
                     (TaskHandle_t *)&thread_serial_soft_trans_irq); /*????*/
@@ -102,6 +102,10 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 //    __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_RXNE);
 //   __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_TC);
     // TODO: clean flags
+    if (xRxEnable == FALSE && xTxEnable == FALSE)
+    {
+        printf("STOP MODBUS\n");
+    }
     if (xRxEnable)
     {
         /* enable RX interrupt */
@@ -147,12 +151,16 @@ BOOL xMBPortSerialPutByte(CHAR ucByte)
 /*Get a byte from fifo*/
 BOOL xMBPortSerialGetByte(CHAR *pucByte)
 {
-    //Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
+#if 0
+    Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
+
+#else
     int ch = serialgetc(0);
     if (ch != -1)
     {
         *pucByte = (CHAR)ch & 0xff;
     }
+#endif
     return TRUE;
 }
 
@@ -197,6 +205,7 @@ static void serial_soft_trans_irq(void *parameter)
                             portMAX_DELAY); /* ??????,???? */
         /* execute modbus callback */
         prvvUARTTxReadyISR();
+        printf("Sendwater:%d\n", uxTaskGetStackHighWaterMark(NULL));
     }
 }
 

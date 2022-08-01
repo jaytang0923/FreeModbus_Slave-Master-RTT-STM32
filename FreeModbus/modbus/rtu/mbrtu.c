@@ -98,7 +98,7 @@ eMBRTUInit(UCHAR ucSlaveAddress, UCHAR ucPort, ULONG ulBaudRate, eMBParity ePari
          */
         if (ulBaudRate > 19200)
         {
-            usTimerT35_50us = 35;       /* 1800us. */
+            usTimerT35_50us = 35 * 10;     /* 1800us. */
         }
         else
         {

@@ -28,11 +28,12 @@
 
 /* ----------------------- static functions ---------------------------------*/
 static TimerHandle_t timer;
-static void prvvTIMERExpiredISR(void);
+void prvvTIMERExpiredISR(void);
 static void timer_timeout_ind(xTimerHandle xTimer);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
+#if 0
     /*
     Freertos can't create timer in isr!
     So,I use hardware timer here! £¡Freq=1Mhz
@@ -43,23 +44,48 @@ BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
                 pdFALSE, (void *)2, timer_timeout_ind);
     if (timer != NULL)
         return TRUE;
+
+#else
+    timer05Init();
+    return TRUE;
+#endif
 }
 
 void vMBPortTimersEnable()
 {
-    printf("%d ET\n", osKernelGetTickCount());
+#if 0
+    printf("%d %d ET %d\n", osKernelGetTickCount(), xTimerGetExpiryTime((TimerHandle_t)timer), uxTaskGetStackHighWaterMark(NULL));
     if (IS_IRQ())
     {
-        xTimerStartFromISR((TimerHandle_t)timer, 0);
+        if (xTimerGetExpiryTime((TimerHandle_t)timer) < osKernelGetTickCount())
+        {
+            xTimerStartFromISR((TimerHandle_t)timer, 0);
+        }
+        else
+        {
+            //printf("R%d\n", xTimerGetExpiryTime((TimerHandle_t)timer));
+            xTimerResetFromISR((TimerHandle_t)timer, 0);
+        }
     }
     else
     {
-        xTimerStart((TimerHandle_t)timer, 0);
+        if (xTimerGetExpiryTime((TimerHandle_t)timer) < osKernelGetTickCount())
+        {
+            xTimerStart((TimerHandle_t)timer, 0);
+        }
+        else
+        {
+            xTimerReset((TimerHandle_t)timer, 0);
+        }
     }
+#else
+    timer05Start();
+#endif
 }
 
 void vMBPortTimersDisable()
 {
+#if 0
     if (IS_IRQ())
     {
         xTimerStopFromISR((TimerHandle_t)timer, 0);
@@ -68,7 +94,10 @@ void vMBPortTimersDisable()
     {
         xTimerStop((TimerHandle_t)timer, 0);
     }
-    printf("%d DT\n", osKernelGetTickCount());
+    printf("%d DT %d\n", osKernelGetTickCount(), uxTaskPriorityGet(NULL));
+#else
+    timer05Stop();
+#endif
 }
 
 void prvvTIMERExpiredISR(void)
@@ -77,5 +106,7 @@ void prvvTIMERExpiredISR(void)
 }
 static void timer_timeout_ind(xTimerHandle xTimer)
 {
+    EnterCriticalSection();
     prvvTIMERExpiredISR();
+    ExitCriticalSection();
 }
