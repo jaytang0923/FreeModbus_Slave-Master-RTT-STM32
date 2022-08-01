@@ -30,22 +30,43 @@
 #include "mbconfig.h"
 
 #if MB_FUNC_CUSTOM_ENABLED > 0
-eMBException
-eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
+
+#define MIN_CUSTOM_DATALEN          3
+/**
+ * @fn          eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
+ * @brief       excute custom function
+ *
+ * @param[in]   UCHAR *pucFrame
+                TLV format:  TAG(1) + Len(2) + Val(0~....)
+ * @param[in]   USHORT *usLen
+ * @return      eMBException
+ */
+eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
 {
-    UCHAR buf[32];
-    short len = 3;
-    buf[0] = '9';
-    buf[1] = '7';
-    buf[2] = '0';
+    eMBException sta;
+    uint8_t funcid;
+    uint16_t *pusdlen;
+    uint8_t *pucdata;
 
-    hexdump(pucFrame, *usLen);
-    memcpy(pucFrame + MB_PDU_DATA_OFF, buf, len);
+    // data length error
+    if (*usLen < MIN_CUSTOM_DATALEN)
+    {
+        return MB_EX_ILLEGAL_FUNCTION;
+    }
 
-    *usLen = (USHORT)(MB_PDU_DATA_OFF + len);
+    //TLV command format
+    funcid = pucFrame[MB_PDU_DATA_OFF];
+    pusdlen = (uint16_t *)(pucFrame + MB_PDU_DATA_OFF + 1); //MSB
+    pucdata = pucFrame + MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN;
+    printf(">>T=%x L=%d %p %p\n", funcid, *pusdlen, pucdata, pucFrame);
 
-    printf("water:%d %p\n", uxTaskGetStackHighWaterMark(NULL), pucFrame);
-    return MB_EX_NONE;
+    sta = (eMBException)eExecuteCustomFunc(funcid, pusdlen, pucdata);
+    printf("sta=%d\n", sta);
+    //TLV response
+    *usLen = MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN + *pusdlen;
+    //printf("water:%d %p\n", uxTaskGetStackHighWaterMark(NULL), pucFrame);
+    printf("<<T=%x L=%d\n", funcid, *usLen);
+    return sta;
 }
 
 #endif

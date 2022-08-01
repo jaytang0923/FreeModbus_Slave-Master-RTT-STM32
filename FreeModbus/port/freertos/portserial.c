@@ -205,7 +205,7 @@ static void serial_soft_trans_irq(void *parameter)
                             portMAX_DELAY); /* ??????,???? */
         /* execute modbus callback */
         prvvUARTTxReadyISR();
-        printf("Sendwater:%d\n", uxTaskGetStackHighWaterMark(NULL));
+        //printf("Sendwater:%d\n", uxTaskGetStackHighWaterMark(NULL));
     }
 }
 
