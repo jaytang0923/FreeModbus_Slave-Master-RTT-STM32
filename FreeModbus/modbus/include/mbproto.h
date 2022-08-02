@@ -33,6 +33,7 @@
 
 #ifdef __cplusplus
 PR_BEGIN_EXTERN_C
+#define d{}
 #endif
 /* ----------------------- Defines ------------------------------------------*/
 #define MB_ADDRESS_BROADCAST    ( 0 )   /*! Modbus broadcast address. */
@@ -54,6 +55,9 @@ PR_BEGIN_EXTERN_C
 #define MB_FUNC_DIAG_GET_COM_EVENT_LOG        ( 12 )
 #define MB_FUNC_OTHER_REPORT_SLAVEID          ( 17 )
 #define MB_FUNC_ERROR                         ( 128 )
+
+#define MB_FUNC_CUSTOM                        ( 66 ) /*65-72  or 100-110*/
+
 /* ----------------------- Type definitions ---------------------------------*/
     typedef enum
 {

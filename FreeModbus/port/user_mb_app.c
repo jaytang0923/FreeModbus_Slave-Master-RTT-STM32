@@ -24,16 +24,16 @@
 //Slave mode:DiscreteInputs variables
 USHORT   usSDiscInStart                               = S_DISCRETE_INPUT_START;
 #if S_DISCRETE_INPUT_NDISCRETES%8
-UCHAR    ucSDiscInBuf[S_DISCRETE_INPUT_NDISCRETES/8+1];
+UCHAR    ucSDiscInBuf[S_DISCRETE_INPUT_NDISCRETES / 8 + 1];
 #else
-UCHAR    ucSDiscInBuf[S_DISCRETE_INPUT_NDISCRETES/8]  ;
+UCHAR    ucSDiscInBuf[S_DISCRETE_INPUT_NDISCRETES / 8]  ;
 #endif
 //Slave mode:Coils variables
 USHORT   usSCoilStart                                 = S_COIL_START;
 #if S_COIL_NCOILS%8
-UCHAR    ucSCoilBuf[S_COIL_NCOILS/8+1]                ;
+UCHAR    ucSCoilBuf[S_COIL_NCOILS / 8 + 1]                ;
 #else
-UCHAR    ucSCoilBuf[S_COIL_NCOILS/8]                  ;
+UCHAR    ucSCoilBuf[S_COIL_NCOILS / 8]                  ;
 #endif
 //Slave mode:InputRegister variables
 USHORT   usSRegInStart                                = S_REG_INPUT_START;
@@ -51,11 +51,11 @@ USHORT   usSRegHoldBuf[S_REG_HOLDING_NREGS]           ;
  *
  * @return result
  */
-eMBErrorCode eMBRegInputCB(UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNRegs )
+eMBErrorCode eMBRegInputCB(UCHAR *pucRegBuffer, USHORT usAddress, USHORT usNRegs)
 {
     eMBErrorCode    eStatus = MB_ENOERR;
     USHORT          iRegIndex;
-    USHORT *        pusRegInputBuf;
+    USHORT         *pusRegInputBuf;
     USHORT          REG_INPUT_START;
     USHORT          REG_INPUT_NREGS;
     USHORT          usRegInStart;
@@ -74,8 +74,8 @@ eMBErrorCode eMBRegInputCB(UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNReg
         iRegIndex = usAddress - usRegInStart;
         while (usNRegs > 0)
         {
-            *pucRegBuffer++ = (UCHAR) (pusRegInputBuf[iRegIndex] >> 8);
-            *pucRegBuffer++ = (UCHAR) (pusRegInputBuf[iRegIndex] & 0xFF);
+            *pucRegBuffer++ = (UCHAR)(pusRegInputBuf[iRegIndex] >> 8);
+            *pucRegBuffer++ = (UCHAR)(pusRegInputBuf[iRegIndex] & 0xFF);
             iRegIndex++;
             usNRegs--;
         }
@@ -98,12 +98,12 @@ eMBErrorCode eMBRegInputCB(UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNReg
  *
  * @return result
  */
-eMBErrorCode eMBRegHoldingCB(UCHAR * pucRegBuffer, USHORT usAddress,
-        USHORT usNRegs, eMBRegisterMode eMode)
+eMBErrorCode eMBRegHoldingCB(UCHAR *pucRegBuffer, USHORT usAddress,
+                             USHORT usNRegs, eMBRegisterMode eMode)
 {
     eMBErrorCode    eStatus = MB_ENOERR;
     USHORT          iRegIndex;
-    USHORT *        pusRegHoldingBuf;
+    USHORT         *pusRegHoldingBuf;
     USHORT          REG_HOLDING_START;
     USHORT          REG_HOLDING_NREGS;
     USHORT          usRegHoldStart;
@@ -122,27 +122,27 @@ eMBErrorCode eMBRegHoldingCB(UCHAR * pucRegBuffer, USHORT usAddress,
         iRegIndex = usAddress - usRegHoldStart;
         switch (eMode)
         {
-        /* read current register values from the protocol stack. */
-        case MB_REG_READ:
-            while (usNRegs > 0)
-            {
-                *pucRegBuffer++ = (UCHAR) (pusRegHoldingBuf[iRegIndex] >> 8);
-                *pucRegBuffer++ = (UCHAR) (pusRegHoldingBuf[iRegIndex] & 0xFF);
-                iRegIndex++;
-                usNRegs--;
-            }
-            break;
+            /* read current register values from the protocol stack. */
+            case MB_REG_READ:
+                while (usNRegs > 0)
+                {
+                    *pucRegBuffer++ = (UCHAR)(pusRegHoldingBuf[iRegIndex] >> 8);
+                    *pucRegBuffer++ = (UCHAR)(pusRegHoldingBuf[iRegIndex] & 0xFF);
+                    iRegIndex++;
+                    usNRegs--;
+                }
+                break;
 
-        /* write current register values with new values from the protocol stack. */
-        case MB_REG_WRITE:
-            while (usNRegs > 0)
-            {
-                pusRegHoldingBuf[iRegIndex] = *pucRegBuffer++ << 8;
-                pusRegHoldingBuf[iRegIndex] |= *pucRegBuffer++;
-                iRegIndex++;
-                usNRegs--;
-            }
-            break;
+            /* write current register values with new values from the protocol stack. */
+            case MB_REG_WRITE:
+                while (usNRegs > 0)
+                {
+                    pusRegHoldingBuf[iRegIndex] = *pucRegBuffer++ << 8;
+                    pusRegHoldingBuf[iRegIndex] |= *pucRegBuffer++;
+                    iRegIndex++;
+                    usNRegs--;
+                }
+                break;
         }
     }
     else
@@ -162,12 +162,12 @@ eMBErrorCode eMBRegHoldingCB(UCHAR * pucRegBuffer, USHORT usAddress,
  *
  * @return result
  */
-eMBErrorCode eMBRegCoilsCB(UCHAR * pucRegBuffer, USHORT usAddress,
-        USHORT usNCoils, eMBRegisterMode eMode)
+eMBErrorCode eMBRegCoilsCB(UCHAR *pucRegBuffer, USHORT usAddress,
+                           USHORT usNCoils, eMBRegisterMode eMode)
 {
     eMBErrorCode    eStatus = MB_ENOERR;
-    USHORT          iRegIndex , iRegBitIndex , iNReg;
-    UCHAR *         pucCoilBuf;
+    USHORT          iRegIndex, iRegBitIndex, iNReg;
+    UCHAR          *pucCoilBuf;
     USHORT          COIL_START;
     USHORT          COIL_NCOILS;
     USHORT          usCoilStart;
@@ -181,46 +181,46 @@ eMBErrorCode eMBRegCoilsCB(UCHAR * pucRegBuffer, USHORT usAddress,
     /* it already plus one in modbus function method. */
     usAddress--;
 
-    if( ( usAddress >= COIL_START ) &&
-        ( usAddress + usNCoils <= COIL_START + COIL_NCOILS ) )
+    if ((usAddress >= COIL_START) &&
+            (usAddress + usNCoils <= COIL_START + COIL_NCOILS))
     {
-        iRegIndex = (USHORT) (usAddress - usCoilStart) / 8;
-        iRegBitIndex = (USHORT) (usAddress - usCoilStart) % 8;
-        switch ( eMode )
+        iRegIndex = (USHORT)(usAddress - usCoilStart) / 8;
+        iRegBitIndex = (USHORT)(usAddress - usCoilStart) % 8;
+        switch (eMode)
         {
-        /* read current coil values from the protocol stack. */
-        case MB_REG_READ:
-            while (iNReg > 0)
-            {
-                *pucRegBuffer++ = xMBUtilGetBits(&pucCoilBuf[iRegIndex++],
-                        iRegBitIndex, 8);
-                iNReg--;
-            }
-            pucRegBuffer--;
-            /* last coils */
-            usNCoils = usNCoils % 8;
-            /* filling zero to high bit */
-            *pucRegBuffer = *pucRegBuffer << (8 - usNCoils);
-            *pucRegBuffer = *pucRegBuffer >> (8 - usNCoils);
-            break;
+            /* read current coil values from the protocol stack. */
+            case MB_REG_READ:
+                while (iNReg > 0)
+                {
+                    *pucRegBuffer++ = xMBUtilGetBits(&pucCoilBuf[iRegIndex++],
+                                                     iRegBitIndex, 8);
+                    iNReg--;
+                }
+                pucRegBuffer--;
+                /* last coils */
+                usNCoils = usNCoils % 8;
+                /* filling zero to high bit */
+                *pucRegBuffer = *pucRegBuffer << (8 - usNCoils);
+                *pucRegBuffer = *pucRegBuffer >> (8 - usNCoils);
+                break;
 
             /* write current coil values with new values from the protocol stack. */
-        case MB_REG_WRITE:
-            while (iNReg > 1)
-            {
-                xMBUtilSetBits(&pucCoilBuf[iRegIndex++], iRegBitIndex, 8,
-                        *pucRegBuffer++);
-                iNReg--;
-            }
-            /* last coils */
-            usNCoils = usNCoils % 8;
-            /* xMBUtilSetBits has bug when ucNBits is zero */
-            if (usNCoils != 0)
-            {
-                xMBUtilSetBits(&pucCoilBuf[iRegIndex++], iRegBitIndex, usNCoils,
-                        *pucRegBuffer++);
-            }
-            break;
+            case MB_REG_WRITE:
+                while (iNReg > 1)
+                {
+                    xMBUtilSetBits(&pucCoilBuf[iRegIndex++], iRegBitIndex, 8,
+                                   *pucRegBuffer++);
+                    iNReg--;
+                }
+                /* last coils */
+                usNCoils = usNCoils % 8;
+                /* xMBUtilSetBits has bug when ucNBits is zero */
+                if (usNCoils != 0)
+                {
+                    xMBUtilSetBits(&pucCoilBuf[iRegIndex++], iRegBitIndex, usNCoils,
+                                   *pucRegBuffer++);
+                }
+                break;
         }
     }
     else
@@ -239,11 +239,11 @@ eMBErrorCode eMBRegCoilsCB(UCHAR * pucRegBuffer, USHORT usAddress,
  *
  * @return result
  */
-eMBErrorCode eMBRegDiscreteCB( UCHAR * pucRegBuffer, USHORT usAddress, USHORT usNDiscrete )
+eMBErrorCode eMBRegDiscreteCB(UCHAR *pucRegBuffer, USHORT usAddress, USHORT usNDiscrete)
 {
     eMBErrorCode    eStatus = MB_ENOERR;
-    USHORT          iRegIndex , iRegBitIndex , iNReg;
-    UCHAR *         pucDiscreteInputBuf;
+    USHORT          iRegIndex, iRegBitIndex, iNReg;
+    UCHAR          *pucDiscreteInputBuf;
     USHORT          DISCRETE_INPUT_START;
     USHORT          DISCRETE_INPUT_NDISCRETES;
     USHORT          usDiscreteInputStart;
@@ -260,13 +260,13 @@ eMBErrorCode eMBRegDiscreteCB( UCHAR * pucRegBuffer, USHORT usAddress, USHORT us
     if ((usAddress >= DISCRETE_INPUT_START)
             && (usAddress + usNDiscrete    <= DISCRETE_INPUT_START + DISCRETE_INPUT_NDISCRETES))
     {
-        iRegIndex = (USHORT) (usAddress - usDiscreteInputStart) / 8;
-        iRegBitIndex = (USHORT) (usAddress - usDiscreteInputStart) % 8;
+        iRegIndex = (USHORT)(usAddress - usDiscreteInputStart) / 8;
+        iRegBitIndex = (USHORT)(usAddress - usDiscreteInputStart) % 8;
 
         while (iNReg > 0)
         {
             *pucRegBuffer++ = xMBUtilGetBits(&pucDiscreteInputBuf[iRegIndex++],
-                    iRegBitIndex, 8);
+                                             iRegBitIndex, 8);
             iNReg--;
         }
         pucRegBuffer--;

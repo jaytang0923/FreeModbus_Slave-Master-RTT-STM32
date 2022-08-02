@@ -22,14 +22,41 @@
 #ifndef _PORT_H
 #define _PORT_H
 
-#include <stm32f10x_conf.h>
+#include "cmsis_os2.h"
+#include "FreeRTOS.h"
 #include "mbconfig.h"
-#include <rthw.h>
-#include <rtthread.h>
+#include "semphr.h"
+#include "task.h"
+#include "timers.h"
+#include <task.h>
+#include <event_groups.h>
 
 #include <assert.h>
 #include <inttypes.h>
+#include <stdio.h>
 
+#define DEBUG 1
+#if DEBUG == 1
+#define MODBUS_DEBUG(fmt, args...)                                             \
+  printf("  MODBUS_DEBUG(%s:%d):  \t" fmt, __func__, __LINE__, ##args)
+#elif DEBUG == 0
+#define MODBUS_DEBUG(fmt, args...)                                             \
+  do {                                                                         \
+  } while (0)
+#endif
+
+//#define IS_IRQ_MODE()             (__get_IPSR() != 0U)
+#define assert_param(expr) ((expr) ? (int)0U : assert_failed((uint8_t *)__FILE__, __LINE__))
+//void assert_failed(uint8_t* file, uint32_t line);
+
+typedef struct _serial_fifo {
+  /* software fifo */
+  volatile uint8_t *buffer;
+  volatile uint16_t put_index, get_index;
+} Serial_fifo;
+#define FIFO_SIZE_MAX 512
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 #define INLINE
 #define PR_BEGIN_EXTERN_C           extern "C" {
 #define PR_END_EXTERN_C             }
@@ -58,5 +85,9 @@ typedef int32_t LONG;
 
 void EnterCriticalSection(void);
 void ExitCriticalSection(void);
+
+extern __inline BOOL IS_IRQ(void);
+void Put_in_fifo(Serial_fifo *buff, uint8_t *putdata, int length);
+int Get_from_fifo(Serial_fifo *buff, uint8_t *getdata, int length);
 
 #endif
