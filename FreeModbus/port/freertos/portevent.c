@@ -45,7 +45,7 @@ BOOL xMBPortEventInit(void)
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
     BaseType_t flag;
-    MODBUS_DEBUG("Post eEvent=%d!\r\n", eEvent);
+    //MODBUS_DEBUG("Post eEvent=%d!\r\n", eEvent);
     if (xSlaveOsEvent != NULL)
     {
         if (IS_IRQ())
@@ -87,7 +87,7 @@ BOOL xMBPortEventGet(eMBEventType *eEvent)
             *eEvent = EV_FRAME_SENT;
             break;
     }
-    MODBUS_DEBUG("Get eEvent=%d!\r\n", recvedEvent);
+    //MODBUS_DEBUG("Get eEvent=%d!\r\n", recvedEvent);
     return TRUE;
 }
 

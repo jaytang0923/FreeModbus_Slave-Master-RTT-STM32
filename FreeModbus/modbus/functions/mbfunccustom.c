@@ -30,7 +30,7 @@
 #include "mbconfig.h"
 
 #if MB_FUNC_CUSTOM_ENABLED > 0
-
+extern int eExecuteCustomFunc(uint8_t ucFunctionID, uint16_t *pusDatalen, uint8_t *pucDataBuf);
 #define MIN_CUSTOM_DATALEN          3
 /**
  * @fn          eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
@@ -58,10 +58,11 @@ eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
     funcid = pucFrame[MB_PDU_DATA_OFF];
     pusdlen = (uint16_t *)(pucFrame + MB_PDU_DATA_OFF + 1); //MSB
     pucdata = pucFrame + MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN;
-    printf(">>T=%x L=%d %p %p\n", funcid, *pusdlen, pucdata, pucFrame);
+    printf(">>T=%x L=%d\n", funcid, *pusdlen);
 
     sta = (eMBException)eExecuteCustomFunc(funcid, pusdlen, pucdata);
-    printf("sta=%d\n", sta);
+    if (sta)
+        printf("error: sta=%d\n", sta);
     //TLV response
     *usLen = MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN + *pusdlen;
     //printf("water:%d %p\n", uxTaskGetStackHighWaterMark(NULL), pucFrame);

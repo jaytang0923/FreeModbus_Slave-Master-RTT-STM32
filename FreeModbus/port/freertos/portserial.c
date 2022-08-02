@@ -112,13 +112,13 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 //    __HAL_UART_ENABLE_IT(serial, UART_IT_RXNE);
         endisSerialRecvIRQ(0, 1);
         /* switch 485 to receive mode */
-        MODBUS_DEBUG("RS232_RX_MODE\r\n");
+        //MODBUS_DEBUG("RS232_RX_MODE\r\n");
 //    SLAVE_RS485_RX_MODE;
     }
     else
     {
         /* switch 485 to transmit mode */
-        MODBUS_DEBUG("RS232_TX_MODE\r\n");
+        //MODBUS_DEBUG("RS232_TX_MODE\r\n");
 //    SLAVE_RS485_TX_MODE;
         /* disable RX interrupt */
         endisSerialRecvIRQ(0, 0);
