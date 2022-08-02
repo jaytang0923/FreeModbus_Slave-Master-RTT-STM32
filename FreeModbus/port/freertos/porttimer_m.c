@@ -30,9 +30,8 @@
 #if MB_MASTER_RTU_ENABLED > 0 || MB_MASTER_ASCII_ENABLED > 0
 /* ----------------------- Variables ----------------------------------------*/
 static USHORT usT35TimeOut50us;
-static struct rt_timer timer;
 static void prvvTIMERExpiredISR(void);
-static void timer_timeout_ind(void* parameter);
+static void timer_timeout_ind(void *parameter);
 
 /* ----------------------- static functions ---------------------------------*/
 static void prvvTIMERExpiredISR(void);
@@ -40,22 +39,15 @@ static void prvvTIMERExpiredISR(void);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBMasterPortTimersInit(USHORT usTimeOut50us)
 {
-    /* backup T35 ticks */
-    usT35TimeOut50us = usTimeOut50us;
-
-    rt_timer_init(&timer, "master timer",
-                   timer_timeout_ind, /* bind timeout callback function */
-                   RT_NULL,
-                   (50 * usT35TimeOut50us) / (1000 * 1000 / RT_TICK_PER_SECOND) + 1,
-                   RT_TIMER_FLAG_ONE_SHOT); /* one shot */
-
+    //timer03Init();
     return TRUE;
 }
 
 void vMBMasterPortTimersT35Enable()
 {
+#if 0
     rt_tick_t timer_tick = (50 * usT35TimeOut50us)
-            / (1000 * 1000 / RT_TICK_PER_SECOND);
+                           / (1000 * 1000 / RT_TICK_PER_SECOND);
 
     /* Set current timer mode, don't change it.*/
     vMBMasterSetCurTimerMode(MB_TMODE_T35);
@@ -63,10 +55,14 @@ void vMBMasterPortTimersT35Enable()
     rt_timer_control(&timer, RT_TIMER_CTRL_SET_TIME, &timer_tick);
 
     rt_timer_start(&timer);
+#else
+    modbusMasterTimStart();
+#endif
 }
 
 void vMBMasterPortTimersConvertDelayEnable()
 {
+#if 0
     rt_tick_t timer_tick = MB_MASTER_DELAY_MS_CONVERT * RT_TICK_PER_SECOND / 1000;
 
     /* Set current timer mode, don't change it.*/
@@ -75,10 +71,14 @@ void vMBMasterPortTimersConvertDelayEnable()
     rt_timer_control(&timer, RT_TIMER_CTRL_SET_TIME, &timer_tick);
 
     rt_timer_start(&timer);
+#else
+    modbusMasterTimStart();
+#endif
 }
 
 void vMBMasterPortTimersRespondTimeoutEnable()
 {
+#if 0
     rt_tick_t timer_tick = MB_MASTER_TIMEOUT_MS_RESPOND * RT_TICK_PER_SECOND / 1000;
 
     /* Set current timer mode, don't change it.*/
@@ -87,21 +87,25 @@ void vMBMasterPortTimersRespondTimeoutEnable()
     rt_timer_control(&timer, RT_TIMER_CTRL_SET_TIME, &timer_tick);
 
     rt_timer_start(&timer);
+#else
+    modbusMasterTimStart();
+#endif
 }
 
 void vMBMasterPortTimersDisable()
 {
-    rt_timer_stop(&timer);
+    //rt_timer_stop(&timer);
+    modbusMasterTimStop();
 }
 
-void prvvTIMERExpiredISR(void)
+void prvvTIMERExpiredISR4Master(void)
 {
     (void) pxMBMasterPortCBTimerExpired();
 }
 
-static void timer_timeout_ind(void* parameter)
-{
-    prvvTIMERExpiredISR();
-}
+//static void timer_timeout_ind(void* parameter)
+//{
+//    prvvTIMERExpiredISR();
+//}
 
 #endif

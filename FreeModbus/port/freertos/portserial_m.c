@@ -24,20 +24,18 @@
 /* ----------------------- Modbus includes ----------------------------------*/
 #include "mb.h"
 #include "mbport.h"
-#include "rtdevice.h"
-#include "bsp.h"
+#include "serial.h"
+#include"RTE_Components.h"
+
 
 #if MB_MASTER_RTU_ENABLED > 0 || MB_MASTER_ASCII_ENABLED > 0
 /* ----------------------- Static variables ---------------------------------*/
-ALIGN(RT_ALIGN_SIZE)
+//ALIGN(RT_ALIGN_SIZE)
 /* software simulation serial transmit IRQ handler thread stack */
-static rt_uint8_t serial_soft_trans_irq_stack[512];
 /* software simulation serial transmit IRQ handler thread */
-static struct rt_thread thread_serial_soft_trans_irq;
 /* serial event */
-static struct rt_event event_serial;
+static osEventFlagsId_t event_serial;
 /* modbus master serial device */
-static rt_serial_t *serial;
 
 /* ----------------------- Defines ------------------------------------------*/
 /* serial transmit event */
@@ -46,13 +44,22 @@ static rt_serial_t *serial;
 /* ----------------------- static functions ---------------------------------*/
 static void prvvUARTTxReadyISR(void);
 static void prvvUARTRxISR(void);
-static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size);
-static void serial_soft_trans_irq(void* parameter);
+static void serial_soft_trans_irq(void *parameter);
+static void Master_RxCpltCallback(void);
+
+osThreadId_t modbusMasterTaskHandle;
+static const osThreadAttr_t modbusMasterTask_attributes =
+{
+    .name = "master uart trans",
+    .priority = (osPriority_t)osPriorityHigh,
+    .stack_size = 256 * 4
+};
 
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
-        eMBParity eParity)
+                             eMBParity eParity)
 {
+#if 0
     /**
      * set 485 mode receive and transmit control IO
      * @note MODBUS_MASTER_RT_CONTROL_PIN_INDEX need be defined by user
@@ -60,17 +67,22 @@ BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
     rt_pin_mode(MODBUS_MASTER_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
 
     /* set serial name */
-    if (ucPORT == 1) {
+    if (ucPORT == 1)
+    {
 #if defined(RT_USING_UART1) || defined(RT_USING_REMAP_UART1)
         extern struct rt_serial_device serial1;
         serial = &serial1;
 #endif
-    } else if (ucPORT == 2) {
+    }
+    else if (ucPORT == 2)
+    {
 #if defined(RT_USING_UART2)
         extern struct rt_serial_device serial2;
         serial = &serial2;
 #endif
-    } else if (ucPORT == 3) {
+    }
+    else if (ucPORT == 3)
+    {
 #if defined(RT_USING_UART3)
         extern struct rt_serial_device serial3;
         serial = &serial3;
@@ -79,31 +91,38 @@ BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
     /* set serial configure parameter */
     serial->config.baud_rate = ulBaudRate;
     serial->config.stop_bits = STOP_BITS_1;
-    switch(eParity){
-    case MB_PAR_NONE: {
-        serial->config.data_bits = DATA_BITS_8;
-        serial->config.parity = PARITY_NONE;
-        break;
-    }
-    case MB_PAR_ODD: {
-        serial->config.data_bits = DATA_BITS_9;
-        serial->config.parity = PARITY_ODD;
-        break;
-    }
-    case MB_PAR_EVEN: {
-        serial->config.data_bits = DATA_BITS_9;
-        serial->config.parity = PARITY_EVEN;
-        break;
-    }
+    switch (eParity)
+    {
+        case MB_PAR_NONE:
+        {
+            serial->config.data_bits = DATA_BITS_8;
+            serial->config.parity = PARITY_NONE;
+            break;
+        }
+        case MB_PAR_ODD:
+        {
+            serial->config.data_bits = DATA_BITS_9;
+            serial->config.parity = PARITY_ODD;
+            break;
+        }
+        case MB_PAR_EVEN:
+        {
+            serial->config.data_bits = DATA_BITS_9;
+            serial->config.parity = PARITY_EVEN;
+            break;
+        }
     }
     /* set serial configure */
     serial->ops->configure(serial, &(serial->config));
 
     /* open serial device */
     if (!serial->parent.open(&serial->parent,
-            RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX )) {
+                             RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX))
+    {
         serial->parent.rx_indicate = serial_rx_ind;
-    } else {
+    }
+    else
+    {
         return FALSE;
     }
 
@@ -117,13 +136,24 @@ BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
                    sizeof(serial_soft_trans_irq_stack),
                    10, 5);
     rt_thread_startup(&thread_serial_soft_trans_irq);
+#else
+    serialRegisterCallback(0, HAL_UART_RX_COMPLETE_CB_ID, Master_RxCpltCallback);
+    serialinit(0, 115200);
 
+    event_serial = osEventFlagsNew(NULL);
+    assert_param(event_serial != NULL);
+
+    modbusMasterTaskHandle = osThreadNew(serial_soft_trans_irq, NULL, &modbusMasterTask_attributes);
+    assert_param(modbusMasterTaskHandle != NULL);
+
+#endif
     return TRUE;
 }
 
 void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 {
-    rt_uint32_t recved_event;
+    uint32_t recved_event;
+#if 0
     if (xRxEnable)
     {
         /* enable RX interrupt */
@@ -147,25 +177,51 @@ void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     {
         /* stop serial transmit */
         rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START,
-                RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, 0,
-                &recved_event);
+                      RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, 0,
+                      &recved_event);
     }
+#else
+    if (xRxEnable)
+    {
+        endisSerialRecvIRQ(0, 1);
+    }
+    else
+    {
+        endisSerialRecvIRQ(0, 0);
+    }
+    if (xTxEnable)
+    {
+        osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
+    }
+    else
+    {
+        osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
+
+    }
+#endif
 }
 
 void vMBMasterPortClose(void)
 {
-    serial->parent.close(&(serial->parent));
+    //serial->parent.close(&(serial->parent));
+    serialclose(0);
 }
 
 BOOL xMBMasterPortSerialPutByte(CHAR ucByte)
 {
-    serial->parent.write(&(serial->parent), 0, &ucByte, 1);
+    //serial->parent.write(&(serial->parent), 0, &ucByte, 1);
+    serialputc(0, ucByte);
     return TRUE;
 }
 
-BOOL xMBMasterPortSerialGetByte(CHAR * pucByte)
+BOOL xMBMasterPortSerialGetByte(CHAR *pucByte)
 {
-    serial->parent.read(&(serial->parent), 0, pucByte, 1);
+    //serial->parent.read(&(serial->parent), 0, pucByte, 1);
+    int ch = serialgetc(0);
+    if (ch != -1)
+    {
+        *pucByte = (CHAR)ch & 0xff;
+    }
     return TRUE;
 }
 
@@ -176,7 +232,7 @@ BOOL xMBMasterPortSerialGetByte(CHAR * pucByte)
  * a new character can be sent. The protocol stack will then call
  * xMBPortSerialPutByte( ) to send the character.
  */
-void prvvUARTTxReadyISR(void)
+static void prvvUARTTxReadyISR(void)
 {
     pxMBMasterFrameCBTransmitterEmpty();
 }
@@ -187,7 +243,7 @@ void prvvUARTTxReadyISR(void)
  * protocol stack will then call xMBPortSerialGetByte( ) to retrieve the
  * character.
  */
-void prvvUARTRxISR(void)
+static void prvvUARTRxISR(void)
 {
     pxMBMasterFrameCBByteReceived();
 }
@@ -197,29 +253,43 @@ void prvvUARTRxISR(void)
  *
  * @param parameter parameter
  */
-static void serial_soft_trans_irq(void* parameter) {
-    rt_uint32_t recved_event;
+static void serial_soft_trans_irq(void *parameter)
+{
+    uint32_t recved_event;
+#if 0
     while (1)
     {
         /* waiting for serial transmit start */
         rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START, RT_EVENT_FLAG_OR,
-                RT_WAITING_FOREVER, &recved_event);
+                      RT_WAITING_FOREVER, &recved_event);
         /* execute modbus callback */
         prvvUARTTxReadyISR();
     }
+#else
+    while (1)
+    {
+        /* waiting for serial transmit start */
+        recved_event = osEventFlagsWait(event_serial, EVENT_SERIAL_TRANS_START, osFlagsWaitAny, osWaitForever);
+        /* execute modbus callback */
+        prvvUARTTxReadyISR();
+    }
+#endif
 }
 
-/**
- * This function is serial receive callback function
- *
- * @param dev the device of serial
- * @param size the data size that receive
- *
- * @return return RT_EOK
- */
-static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size) {
+///**
+// * This function is serial receive callback function
+// *
+// * @param dev the device of serial
+// * @param size the data size that receive
+// *
+// * @return return RT_EOK
+// */
+//static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size) {
+//    prvvUARTRxISR();
+//    return RT_EOK;
+//}
+void Master_RxCpltCallback(void)
+{
     prvvUARTRxISR();
-    return RT_EOK;
 }
-
 #endif

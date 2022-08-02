@@ -76,6 +76,7 @@ eMBException    eMBFuncReadWriteMultipleHoldingRegister( UCHAR * pucFrame, USHOR
 
 #if MB_FUNC_CUSTOM_ENABLED
 eMBException    eMBFuncCustom( UCHAR * pucFrame, USHORT * usLen );
+eMBException eMBMasterFuncCustom(UCHAR *pucFrame, USHORT *usLen);
 #endif
 
 #ifdef __cplusplus
