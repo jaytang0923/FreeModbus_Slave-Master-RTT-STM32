@@ -56,6 +56,8 @@ void vMBMasterPortTimersT35Enable()
 
     rt_timer_start(&timer);
 #else
+    /* Set current timer mode, don't change it.*/
+    vMBMasterSetCurTimerMode(MB_TMODE_T35);
     modbusMasterTimStart();
 #endif
 }
@@ -72,6 +74,9 @@ void vMBMasterPortTimersConvertDelayEnable()
 
     rt_timer_start(&timer);
 #else
+    /* Set current timer mode, don't change it.*/
+    vMBMasterSetCurTimerMode(MB_TMODE_CONVERT_DELAY);
+
     modbusMasterTimStart();
 #endif
 }
@@ -88,6 +93,9 @@ void vMBMasterPortTimersRespondTimeoutEnable()
 
     rt_timer_start(&timer);
 #else
+    /* Set current timer mode, don't change it.*/
+    vMBMasterSetCurTimerMode(MB_TMODE_RESPOND_TIMEOUT);
+
     modbusMasterTimStart();
 #endif
 }

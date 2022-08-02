@@ -31,8 +31,6 @@
 #ifndef _MB_FRAME_H
 #define _MB_FRAME_H
 
-#include "mbuserconfig.h"
-
 #ifdef __cplusplus
 PR_BEGIN_EXTERN_C
 #endif

@@ -153,6 +153,7 @@ BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
 void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 {
     uint32_t recved_event;
+    int ret;
 #if 0
     if (xRxEnable)
     {
@@ -191,11 +192,12 @@ void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     }
     if (xTxEnable)
     {
-        osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
+        ret = (int)osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
+        assert_param(ret >= 0);
     }
     else
     {
-        osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
+        ret = osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
 
     }
 #endif
@@ -269,7 +271,7 @@ static void serial_soft_trans_irq(void *parameter)
     while (1)
     {
         /* waiting for serial transmit start */
-        recved_event = osEventFlagsWait(event_serial, EVENT_SERIAL_TRANS_START, osFlagsWaitAny, osWaitForever);
+        recved_event = osEventFlagsWait(event_serial, EVENT_SERIAL_TRANS_START, osFlagsNoClear | osFlagsWaitAny, osWaitForever);
         /* execute modbus callback */
         prvvUARTTxReadyISR();
     }

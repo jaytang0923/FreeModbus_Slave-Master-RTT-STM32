@@ -26,6 +26,8 @@
 #include "port.h"
 
 #if MB_MASTER_RTU_ENABLED > 0 || MB_MASTER_ASCII_ENABLED > 0
+
+#define dbg(x...) MODBUS_DEBUG(x)
 /* ----------------------- Defines ------------------------------------------*/
 /* ----------------------- Variables ----------------------------------------*/
 static  osEventFlagsId_t xMasterOsEvent;
@@ -41,7 +43,7 @@ BOOL xMBMasterPortEventInit(void)
 BOOL xMBMasterPortEventPost(eMBMasterEventType eEvent)
 {
     uint32_t ret = osEventFlagsSet(xMasterOsEvent, eEvent);
-    assert_param(ret == osOK);
+    //assert_param(ret == eEvent);
     return TRUE;
 }
 
@@ -147,7 +149,8 @@ void vMBMasterErrorCBRespondTimeout(UCHAR ucDestAddress, const UCHAR *pucPDUData
      * If you don't use OS, you can change it.
      */
     //rt_event_send(&xMasterOsEvent, EV_MASTER_ERROR_RESPOND_TIMEOUT);
-    osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_RESPOND_TIMEOUT);
+    uint32_t ret = osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_RESPOND_TIMEOUT);
+    ///assert_param(ret == EV_MASTER_ERROR_RESPOND_TIMEOUT);
 
     /* You can add your code under here. */
     // TODO:
@@ -171,7 +174,8 @@ void vMBMasterErrorCBReceiveData(UCHAR ucDestAddress, const UCHAR *pucPDUData,
      * If you don't use OS, you can change it.
      */
     //rt_event_send(&xMasterOsEvent, EV_MASTER_ERROR_RECEIVE_DATA);
-    osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_RECEIVE_DATA);
+    uint32_t ret = osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_RECEIVE_DATA);
+    //assert_param(ret == EV_MASTER_ERROR_RECEIVE_DATA);
 
     /* You can add your code under here. */
 
@@ -195,7 +199,8 @@ void vMBMasterErrorCBExecuteFunction(UCHAR ucDestAddress, const UCHAR *pucPDUDat
      * If you don't use OS, you can change it.
      */
     //rt_event_send(&xMasterOsEvent, EV_MASTER_ERROR_EXECUTE_FUNCTION);
-    osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_EXECUTE_FUNCTION);
+    uint32_t ret = osEventFlagsSet(xMasterOsEvent, EV_MASTER_ERROR_EXECUTE_FUNCTION);
+    //assert_param(ret == EV_MASTER_ERROR_EXECUTE_FUNCTION);
 
     /* You can add your code under here. */
 
@@ -214,7 +219,8 @@ void vMBMasterCBRequestScuuess(void)
      * If you don't use OS, you can change it.
      */
     //rt_event_send(&xMasterOsEvent, EV_MASTER_PROCESS_SUCESS);
-    osEventFlagsSet(xMasterOsEvent, EV_MASTER_PROCESS_SUCESS);
+    uint32_t ret = osEventFlagsSet(xMasterOsEvent, EV_MASTER_PROCESS_SUCESS);
+    ///assert_param(ret == EV_MASTER_PROCESS_SUCESS);
 
     /* You can add your code under here. */
 
