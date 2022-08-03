@@ -29,7 +29,7 @@
 
 #if MB_MASTER_RTU_ENABLED > 0 || MB_MASTER_ASCII_ENABLED > 0
 /* ----------------------- Variables ----------------------------------------*/
-static USHORT usT35TimeOut50us;
+static USHORT usT35TimeOut50us = 5; //1750us need
 static void prvvTIMERExpiredISR(void);
 static void timer_timeout_ind(void *parameter);
 
@@ -39,7 +39,7 @@ static void prvvTIMERExpiredISR(void);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBMasterPortTimersInit(USHORT usTimeOut50us)
 {
-    //timer03Init();
+    modbusMasterTimInit();
     return TRUE;
 }
 
@@ -58,7 +58,7 @@ void vMBMasterPortTimersT35Enable()
 #else
     /* Set current timer mode, don't change it.*/
     vMBMasterSetCurTimerMode(MB_TMODE_T35);
-    modbusMasterTimStart();
+    modbusMasterTimStart(usT35TimeOut50us);
 #endif
 }
 
@@ -77,7 +77,7 @@ void vMBMasterPortTimersConvertDelayEnable()
     /* Set current timer mode, don't change it.*/
     vMBMasterSetCurTimerMode(MB_TMODE_CONVERT_DELAY);
 
-    modbusMasterTimStart();
+    modbusMasterTimStart(MB_MASTER_DELAY_MS_CONVERT);
 #endif
 }
 
@@ -96,7 +96,7 @@ void vMBMasterPortTimersRespondTimeoutEnable()
     /* Set current timer mode, don't change it.*/
     vMBMasterSetCurTimerMode(MB_TMODE_RESPOND_TIMEOUT);
 
-    modbusMasterTimStart();
+    modbusMasterTimStart(MB_MASTER_TIMEOUT_MS_RESPOND);
 #endif
 }
 
