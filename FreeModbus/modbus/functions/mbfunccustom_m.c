@@ -53,8 +53,8 @@ extern int eExecuteCustomFunc(uint8_t ucFunctionID, uint16_t *pusDatalen, uint8_
 
 #define SECU_MCU_ADDR       2
 
-static uint8_t *s_pucCustomData = NULL;
-static uint16_t *s_pucCustomDataLen = NULL;
+static uint8_t *s_pucCustomResBuf = NULL;
+static uint16_t *s_pusCustomResBufLen = NULL;
 /**
  * This function will request read input register.
  *
@@ -65,11 +65,11 @@ static uint16_t *s_pucCustomDataLen = NULL;
  *
  * @return error code
  */
-eMBMasterReqErrCode eMBMasterReqCustom(UCHAR ucSndAddr, UCHAR *pucData, USHORT *pusDataLen, LONG lTimeOut)
+eMBMasterReqErrCode eMBMasterReqCustom(UCHAR ucSndAddr, UCHAR *pucData, USHORT usDataLen, UCHAR *pucResBuf, USHORT *pusResLen, LONG lTimeOut)
 {
     UCHAR                 *ucMBFrame;
     eMBMasterReqErrCode    eErrStatus = MB_MRE_NO_ERR;
-    USHORT  slen = (*pusDataLen > MB_PDU_CUSTOMSIZE_MAX) ? MB_PDU_CUSTOMSIZE_MAX : *pusDataLen;
+    USHORT  slen = (usDataLen > MB_PDU_CUSTOMSIZE_MAX) ? MB_PDU_CUSTOMSIZE_MAX : usDataLen;
     assert_param(slen != 0);
     //FIXME:lTimeOut for wait or for response?
     if (ucSndAddr > MB_MASTER_TOTAL_SLAVE_NUM) eErrStatus = MB_MRE_ILL_ARG;
@@ -77,8 +77,8 @@ eMBMasterReqErrCode eMBMasterReqCustom(UCHAR ucSndAddr, UCHAR *pucData, USHORT *
     else
     {
         //save the cmd point for response
-        s_pucCustomData = pucData;
-        s_pucCustomDataLen = pusDataLen;
+        s_pucCustomResBuf = pucResBuf;
+        s_pusCustomResBufLen = pusResLen;
     
         vMBMasterGetPDUSndBuf(&ucMBFrame);
         vMBMasterSetDestAddress(ucSndAddr);
@@ -108,8 +108,6 @@ eMBException eMBMasterFuncCustom(UCHAR *pucFrame, USHORT *usLen)
 {
     UCHAR          *ucMBFrame;
     eMBException    eStatus = MB_EX_NONE;
-    dbg("CB: Len=%d, data:\t",*usLen - MB_PDU_SIZE_MIN);
-    hexdump(pucFrame + MB_PDU_REQ_DATA_OFF, *usLen - MB_PDU_SIZE_MIN);
     /* If this request is broadcast, and it's read mode. This request don't need execute. */
     if (xMBMasterRequestIsBroadcast())
     {
@@ -117,16 +115,17 @@ eMBException eMBMasterFuncCustom(UCHAR *pucFrame, USHORT *usLen)
     }else if (*usLen >= MB_PDU_SIZE_MIN + MB_PDU_FUNC_CUSTOM_SIZE_MIN)
     {
         vMBMasterGetPDUSndBuf(&ucMBFrame);
-        dbg("%p %p %p %p\n",s_pucCustomData, s_pucCustomDataLen, ucMBFrame, pucFrame);
         //copy data to user
-        memcpy(s_pucCustomData, ucMBFrame + MB_PDU_REQ_DATA_OFF, *usLen - MB_PDU_SIZE_MIN);
-        *s_pucCustomDataLen = *usLen - MB_PDU_SIZE_MIN;dbg("4");
+        if(s_pucCustomResBuf != NULL && s_pusCustomResBufLen != NULL)
+        {
+            memcpy(s_pucCustomResBuf, ucMBFrame + MB_PDU_REQ_DATA_OFF, *usLen - MB_PDU_SIZE_MIN);
+            *s_pusCustomResBufLen = *usLen - MB_PDU_SIZE_MIN;
+        }
     }else
     {
         /* Can't be a valid request because the length is incorrect. */
         eStatus = MB_EX_ILLEGAL_DATA_VALUE;
     }
-    dbg("done");
     return eStatus;
 }
 
@@ -135,28 +134,36 @@ error code for all command request status
 */
 typedef enum{
     REQ_ERR_NOERR,
-    REQ_ERR_TIMEOUT  = 4,
+    REQ_ERR_ILL_ID,
+    REQ_ERR_ILL_ARG,
+    REQ_ERR_RECVDATA,
+    REQ_ERR_TIMEOUT,
     REQ_ERR_BUSY,
     REQ_ERR_EXEC,
     REQ_ERR_PARA,
+    REQ_ERR_OTHER = 0x88
 } eReqErrCode;
 
-eReqErrCode ExecuteCommand(uint8_t *pucData, uint16_t *pusDataLen)
+eReqErrCode ExecuteCommand(uint8_t *pucCmdData, uint16_t usCmdDataLen, uint8_t *pucResBuf, uint16_t *pusResLen)
 {
     #if DEBUG
     uint32_t tks = osKernelGetTickCount();
     #endif
     eReqErrCode sta = REQ_ERR_NOERR;
-    if(pucData == NULL || !*pusDataLen)
+    if(pucCmdData == NULL || !usCmdDataLen)
     {
         return REQ_ERR_PARA;
     }
-    dbg("%p %p\n", pucData, pusDataLen);
-    eMBMasterReqErrCode reqsta = eMBMasterReqCustom(SECU_MCU_ADDR, pucData, pusDataLen, 200);
+    eMBMasterReqErrCode reqsta = eMBMasterReqCustom(SECU_MCU_ADDR, pucCmdData, usCmdDataLen, pucResBuf, pusResLen, 200);
     if(reqsta==MB_MRE_NO_ERR)
     {
-        dbg("ExecCMD Success,resLen=%d:\t", *pusDataLen);
-        hexdump(pucData, *pusDataLen);
+        #if DEBUG
+            dbg("ExecCMD Success.\n");
+            if(pucResBuf && pusResLen)
+            {
+                hexdump(pucResBuf, *pusResLen);
+            }
+        #endif
     }else if(reqsta == MB_MRE_MASTER_BUSY)
     {
         err("error:MB_MRE_MASTER_BUSY\n");
@@ -164,7 +171,7 @@ eReqErrCode ExecuteCommand(uint8_t *pucData, uint16_t *pusDataLen)
     }else
     {
         err("error: ReqCustom %x\n",reqsta);
-        sta = 0xff;
+        sta = (eReqErrCode)reqsta;
     }
     #if DEBUG
     dbg("Total Take %dms\n",osKernelGetTickCount() - tks);
