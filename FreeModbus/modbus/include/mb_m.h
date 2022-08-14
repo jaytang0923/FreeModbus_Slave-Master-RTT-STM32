@@ -33,6 +33,7 @@
 
 #ifdef __cplusplus
 PR_BEGIN_EXTERN_C
+#define  a{}        ;
 #endif
 
 /*! \defgroup modbus Modbus

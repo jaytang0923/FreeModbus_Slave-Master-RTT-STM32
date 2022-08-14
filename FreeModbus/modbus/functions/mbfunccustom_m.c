@@ -154,6 +154,11 @@ eReqErrCode ExecuteCommand(uint8_t *pucCmdData, uint16_t usCmdDataLen, uint8_t *
     {
         return REQ_ERR_PARA;
     }
+
+    if(eMBMasterIsEstablished() != TRUE)
+    {
+        return REQ_ERR_BUSY;
+    }
     eMBMasterReqErrCode reqsta = eMBMasterReqCustom(SECU_MCU_ADDR, pucCmdData, usCmdDataLen, pucResBuf, pusResLen, 200);
     if(reqsta==MB_MRE_NO_ERR)
     {
