@@ -27,7 +27,7 @@ extern "C"{
 #endif
 #endif /* __cplusplus */
 
-#define MB_MASTER_ENABLED               1
+#define MB_MASTER_ENABLED               0
 
 #define MB_SLAVE_ENABLED                0
 
