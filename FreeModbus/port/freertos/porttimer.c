@@ -27,7 +27,6 @@
 #include "mbport.h"
 
 /* ----------------------- static functions ---------------------------------*/
-static TimerHandle_t timer;
 void prvvTIMERExpiredISR(void);
 static void timer_timeout_ind(xTimerHandle xTimer);
 /* ----------------------- Start implementation -----------------------------*/
@@ -39,19 +38,16 @@ BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 
 void vMBPortTimersEnable()
 {
-    dbg("tm5S");
     timer05Start();
 }
 
 void vMBPortTimersDisable()
 {
     timer05Stop();
-    dbg("tm5E");
 }
 
 void prvvTIMERExpiredISR(void)
 {
-    dbg("tm5X");
     (void)pxMBPortCBTimerExpired();
 }
 static void timer_timeout_ind(xTimerHandle xTimer)

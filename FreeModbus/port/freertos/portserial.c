@@ -38,6 +38,7 @@ void Slave_RxCpltCallback(void);
 /*
  * Serial FIFO mode
  */
+static uint8_t s_ucSerialID = -1;
 
 /* ----------------------- Defines ------------------------------------------*/
 /* serial transmit event */
@@ -64,15 +65,10 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
      * set 485 mode receive and transmit control IO
      * @note MODBUS_SLAVE_RT_CONTROL_PIN_INDEX need be defined by user
      */
-    // rt_pin_mode(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
-    /* set serial name */
-    /*registe recieve callback*/
-    //  HAL_UART_RegisterCallback(serial, HAL_UART_RX_COMPLETE_CB_ID,
-    //                            Slave_RxCpltCallback);
-    serialRegisterCallback(0, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
-    serialinit(0, 115200);
+    s_ucSerialID = ucPORT;
+    serialRegisterCallback(s_ucSerialID, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
+    serialinit(s_ucSerialID, 115200);
     /* software initialize */
-    /* ????????*/
     event_serial = osEventFlagsNew(NULL); //????
     assert_param(event_serial);
     serialTxTask = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
@@ -82,8 +78,6 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
 
 void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 {
-    //    __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_RXNE);
-    //   __HAL_UART_CLEAR_FLAG(serial,UART_FLAG_TC);
     // TODO: clean flags
     if (xRxEnable == FALSE && xTxEnable == FALSE)
     {
@@ -93,66 +87,48 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     if (xRxEnable)
     {
         /* enable RX interrupt */
-        //    __HAL_UART_ENABLE_IT(serial, UART_IT_RXNE);
         endisSerialRecvIRQ(0, 1);
         /* switch 485 to receive mode */
-        MODBUS_DEBUG("RS232_RX_MODE ENABLE\r\n");
-        //    SLAVE_RS485_RX_MODE;
     }
     else
     {
         /* switch 485 to transmit mode */
-        //MODBUS_DEBUG("RS232_TX_MODE\r\n");
-        //    SLAVE_RS485_TX_MODE;
         /* disable RX interrupt */
         endisSerialRecvIRQ(0, 0);
-        MODBUS_DEBUG("RS232_RX_MODE DISABLE\r\n");
     }
 
     if (xTxEnable)
     {
-        MODBUS_DEBUG("RS232_TX_ENABLE\r\n");
         /* start serial transmit */
-        uint32_t evt = osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
-        MODBUS_DEBUG("send event %x %p\r\n", evt, event_serial);
+        osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
     }
     else
     {
-        MODBUS_DEBUG("RS232_TX_DISABLE\r\n");
         /* stop serial transmit */
         osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
-        /*????*/
-        // printf("ms=%.2f,fps=%.2f\r\n", __HAL_TIM_GetCounter(&htim7) / 100.f,
-        // 1000.f / (__HAL_TIM_GetCounter(&htim7) / 100.f));
     }
 }
 
 void vMBPortClose(void)
 {
-    serialclose(0);
+    serialclose(s_ucSerialID);
 }
 /*Send a byte*/
 BOOL xMBPortSerialPutByte(CHAR ucByte)
 {
-    dbg("%02X", ucByte);
-    serialputc(0, ucByte);
+    serialputc(s_ucSerialID, ucByte);
     return TRUE;
 }
 /*Get a byte from fifo*/
 BOOL xMBPortSerialGetByte(CHAR *pucByte)
 {
-#if 0
-    Get_from_fifo(&Slave_serial_rx_fifo, (uint8_t *)pucByte, 1);
-#else
-    int ch = serialgetc(0);
+    int ch = serialgetc(s_ucSerialID);
 
     if (ch != -1)
     {
         *pucByte = (CHAR)ch & 0xff;
-        printf("%02X\n", ch);
     }
 
-#endif
     return TRUE;
 }
 
@@ -189,12 +165,10 @@ static void serialSendTask(void *parameter)
     //uint32_t recved_event;
     while (1)
     {
-        MODBUS_DEBUG("serialSendTask waiting ...");
         /* waiting for serial transmit start */
         osEventFlagsWait(event_serial, EVENT_SERIAL_TRANS_START, osFlagsNoClear | osFlagsWaitAny, osWaitForever);
         /* execute modbus callback */
         prvvUARTTxReadyISR();
-        MODBUS_DEBUG(">");
     }
 }
 
@@ -206,36 +180,5 @@ static void serialSendTask(void *parameter)
  */
 void Slave_RxCpltCallback(void)
 {
-#if 0
-    int ch = -1;
-
-    do
-    {
-        ch = serialgetc(0);
-
-        if (ch == -1)
-        {
-            break;
-        }
-
-        printf("%02X ", ch);
-        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
-    }
-    while (1);
-
-#else
-    // int ch = -1;
-    /*
-    do not take too much time,in case of T35 timeout.
-    */
-    //    do
-    //    {
-    //        ch = serialgetc(0);
-    //        if (ch == -1)
-    //            break;
-    //        Put_in_fifo(&Slave_serial_rx_fifo, (uint8_t *)&ch, 1);
-    //    }
-    //    while (0);
-#endif
     prvvUARTRxISR();
 }

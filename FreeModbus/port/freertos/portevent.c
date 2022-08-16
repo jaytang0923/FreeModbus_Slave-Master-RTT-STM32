@@ -31,14 +31,11 @@ BOOL xMBPortEventInit(void)
 {
     xSlaveOsEvent = osEventFlagsNew(NULL);
     assert_param(xSlaveOsEvent);
-    MODBUS_DEBUG("xMBPortEventInit");
     return TRUE;
 }
 
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
-    BaseType_t flag;
-    MODBUS_DEBUG("Post eEvent=%X\r\n", eEvent);
     osEventFlagsSet(xSlaveOsEvent, eEvent);
     return TRUE;
 }
@@ -46,11 +43,9 @@ BOOL xMBPortEventPost(eMBEventType eEvent)
 BOOL xMBPortEventGet(eMBEventType *eEvent)
 {
     uint32_t recvedEvent;
-    MODBUS_DEBUG("Wait Event...\n");
     /* waiting forever OS event */
     recvedEvent = osEventFlagsWait(xSlaveOsEvent, EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT, osFlagsWaitAny,
                                    osWaitForever);
-    MODBUS_DEBUG("Get eEvent=%X!\r\n", recvedEvent);
 
     switch (recvedEvent)
     {
@@ -70,6 +65,6 @@ BOOL xMBPortEventGet(eMBEventType *eEvent)
             *eEvent = EV_FRAME_SENT;
             break;
     }
+
     return TRUE;
 }
-
