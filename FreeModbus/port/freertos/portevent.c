@@ -25,69 +25,51 @@
 
 
 /* ----------------------- Variables ----------------------------------------*/
-static EventGroupHandle_t xSlaveOsEvent;
+static osEventFlagsId_t xSlaveOsEvent;
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortEventInit(void)
 {
-    xSlaveOsEvent = xEventGroupCreate();
-    if (xSlaveOsEvent != NULL)
-    {
-        MODBUS_DEBUG("xMBPortEventInit Success!\r\n");
-    }
-    else
-    {
-        MODBUS_DEBUG("xMBPortEventInit Faild !\r\n");
-        return FALSE;
-    }
+    xSlaveOsEvent = osEventFlagsNew(NULL);
+    assert_param(xSlaveOsEvent);
+    MODBUS_DEBUG("xMBPortEventInit");
     return TRUE;
 }
 
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
     BaseType_t flag;
-    //MODBUS_DEBUG("Post eEvent=%d!\r\n", eEvent);
-    if (xSlaveOsEvent != NULL)
-    {
-        if (IS_IRQ())
-        {
-            xEventGroupSetBitsFromISR(xSlaveOsEvent, eEvent, &flag);
-        }
-        else
-        {
-            xEventGroupSetBits(xSlaveOsEvent, eEvent);
-        }
-    }
+    MODBUS_DEBUG("Post eEvent=%X\r\n", eEvent);
+    osEventFlagsSet(xSlaveOsEvent, eEvent);
     return TRUE;
 }
 
 BOOL xMBPortEventGet(eMBEventType *eEvent)
 {
     uint32_t recvedEvent;
+    MODBUS_DEBUG("Wait Event...\n");
     /* waiting forever OS event */
-    recvedEvent = xEventGroupWaitBits(xSlaveOsEvent,
-                                      EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE |
-                                      EV_FRAME_SENT, /* 接收任务感兴趣的事件
-                                                        */
-                                      pdTRUE,  /* 退出时清除事件?? */
-                                      pdFALSE, /* 满足感兴趣的所有事?? */
-                                      portMAX_DELAY); /* 指定超时事件,无限等待 */
+    recvedEvent = osEventFlagsWait(xSlaveOsEvent, EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT, osFlagsWaitAny,
+                                   osWaitForever);
+    MODBUS_DEBUG("Get eEvent=%X!\r\n", recvedEvent);
 
     switch (recvedEvent)
     {
         case EV_READY:
             *eEvent = EV_READY;
             break;
+
         case EV_FRAME_RECEIVED:
             *eEvent = EV_FRAME_RECEIVED;
             break;
+
         case EV_EXECUTE:
             *eEvent = EV_EXECUTE;
             break;
+
         case EV_FRAME_SENT:
             *eEvent = EV_FRAME_SENT;
             break;
     }
-    //MODBUS_DEBUG("Get eEvent=%d!\r\n", recvedEvent);
     return TRUE;
 }
 

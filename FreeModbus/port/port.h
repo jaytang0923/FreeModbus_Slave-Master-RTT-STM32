@@ -34,11 +34,12 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <debug.h>
 
 #define DEBUG 1
 #if DEBUG == 1
 #define MODBUS_DEBUG(fmt, args...)                                             \
-  printf("  MODBUS_DEBUG(%s:%d):  \t" fmt, __func__, __LINE__, ##args)
+  dbg("ModBus(%s:%d):  \t" fmt, __func__, __LINE__, ##args)
 #elif DEBUG == 0
 #define MODBUS_DEBUG(fmt, args...)                                             \
   do {                                                                         \

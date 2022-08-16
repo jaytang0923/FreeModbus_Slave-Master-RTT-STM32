@@ -31,7 +31,9 @@
 
 #if MB_FUNC_CUSTOM_ENABLED > 0
 extern int eExecuteCustomFunc(uint8_t ucFunctionID, uint16_t *pusDatalen, uint8_t *pucDataBuf);
-#define MIN_CUSTOM_DATALEN          3
+#define MIN_CUSTOM_DATALEN          2   // CUSTOM_ID + FUNCTION_ID
+#define MIN_CUSTOM_DATAOFT          2   // CUSTOM_ID + FUNCTION_ID
+
 /**
  * @fn          eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
  * @brief       excute custom function
@@ -45,7 +47,6 @@ eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
 {
     eMBException sta;
     uint8_t funcid;
-    uint16_t *pusdlen;
     uint8_t *pucdata;
 
     // data length error
@@ -54,19 +55,23 @@ eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
         return MB_EX_ILLEGAL_FUNCTION;
     }
 
-    //TLV command format
+    //remove the Custom ID.
+    *usLen -= MB_PDU_SIZE_MIN;
     funcid = pucFrame[MB_PDU_DATA_OFF];
-    pusdlen = (uint16_t *)(pucFrame + MB_PDU_DATA_OFF + 1); //MSB
-    pucdata = pucFrame + MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN;
-    printf(">>T=%x L=%d\n", funcid, *pusdlen);
+    pucdata = pucFrame + MIN_CUSTOM_DATAOFT;
+    dbg(">>FuncID=%x Len=%d\n", funcid, *usLen);
+    sta = (eMBException)eExecuteCustomFunc(funcid, usLen, pucdata);
 
-    sta = (eMBException)eExecuteCustomFunc(funcid, pusdlen, pucdata);
     if (sta)
-        printf("error: sta=%d\n", sta);
-    //TLV response
-    *usLen = MB_PDU_DATA_OFF + MIN_CUSTOM_DATALEN + *pusdlen;
-    //printf("water:%d %p\n", uxTaskGetStackHighWaterMark(NULL), pucFrame);
-    printf("<<T=%x L=%d\n", funcid, *usLen);
+    {
+        err("error: sta=%d\n", sta);
+    }
+    else
+    {
+        *usLen += MIN_CUSTOM_DATALEN; // CUSTOM_ID + FUNCTION_ID
+    }
+
+    dbg("<<FuncID=%x L=%d\n", funcid, *usLen);
     return sta;
 }
 

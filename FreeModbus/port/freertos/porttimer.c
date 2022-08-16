@@ -33,75 +33,25 @@ static void timer_timeout_ind(xTimerHandle xTimer);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
-#if 0
-    /*
-    Freertos can't create timer in isr!
-    So,I use hardware timer here! £¡Freq=1Mhz
-    */
-    timer = xTimerCreate(
-                "Slave timer",
-                (50 * usTim1Timerout50us) / (1000 * 1000 / configTICK_RATE_HZ) + 1,
-                pdFALSE, (void *)2, timer_timeout_ind);
-    if (timer != NULL)
-        return TRUE;
-
-#else
     timer05Init();
     return TRUE;
-#endif
 }
 
 void vMBPortTimersEnable()
 {
-#if 0
-    printf("%d %d ET %d\n", osKernelGetTickCount(), xTimerGetExpiryTime((TimerHandle_t)timer), uxTaskGetStackHighWaterMark(NULL));
-    if (IS_IRQ())
-    {
-        if (xTimerGetExpiryTime((TimerHandle_t)timer) < osKernelGetTickCount())
-        {
-            xTimerStartFromISR((TimerHandle_t)timer, 0);
-        }
-        else
-        {
-            //printf("R%d\n", xTimerGetExpiryTime((TimerHandle_t)timer));
-            xTimerResetFromISR((TimerHandle_t)timer, 0);
-        }
-    }
-    else
-    {
-        if (xTimerGetExpiryTime((TimerHandle_t)timer) < osKernelGetTickCount())
-        {
-            xTimerStart((TimerHandle_t)timer, 0);
-        }
-        else
-        {
-            xTimerReset((TimerHandle_t)timer, 0);
-        }
-    }
-#else
+    dbg("tm5S");
     timer05Start();
-#endif
 }
 
 void vMBPortTimersDisable()
 {
-#if 0
-    if (IS_IRQ())
-    {
-        xTimerStopFromISR((TimerHandle_t)timer, 0);
-    }
-    else
-    {
-        xTimerStop((TimerHandle_t)timer, 0);
-    }
-    printf("%d DT %d\n", osKernelGetTickCount(), uxTaskPriorityGet(NULL));
-#else
     timer05Stop();
-#endif
+    dbg("tm5E");
 }
 
 void prvvTIMERExpiredISR(void)
 {
+    dbg("tm5X");
     (void)pxMBPortCBTimerExpired();
 }
 static void timer_timeout_ind(xTimerHandle xTimer)
