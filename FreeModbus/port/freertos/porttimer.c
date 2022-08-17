@@ -28,7 +28,6 @@
 
 /* ----------------------- static functions ---------------------------------*/
 void prvvTIMERExpiredISR(void);
-static void timer_timeout_ind(xTimerHandle xTimer);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
@@ -49,10 +48,4 @@ void vMBPortTimersDisable()
 void prvvTIMERExpiredISR(void)
 {
     (void)pxMBPortCBTimerExpired();
-}
-static void timer_timeout_ind(xTimerHandle xTimer)
-{
-    EnterCriticalSection();
-    prvvTIMERExpiredISR();
-    ExitCriticalSection();
 }

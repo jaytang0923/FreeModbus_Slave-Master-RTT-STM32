@@ -23,13 +23,7 @@
 #define _PORT_H
 
 #include "cmsis_os2.h"
-#include "FreeRTOS.h"
 #include "mbconfig.h"
-#include "semphr.h"
-#include "task.h"
-#include "timers.h"
-#include <task.h>
-#include <event_groups.h>
 
 #include <assert.h>
 #include <inttypes.h>

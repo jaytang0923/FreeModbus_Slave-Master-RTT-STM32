@@ -24,18 +24,35 @@
 /* ----------------------- Modbus includes ----------------------------------*/
 #include "port.h"
 /* ----------------------- Variables ----------------------------------------*/
+extern void vPortEnterCritical( void );
+extern void vPortExitCritical( void );
 
 /* ----------------------- Start implementation -----------------------------*/
 void EnterCriticalSection(void)
 {
-    taskENTER_CRITICAL();
+    if(IS_IRQ())
+    {
+        MODBUS_DEBUG("EnterCriticalSection called by interrupt");
+        assert_param(0);
+    }else
+    {
+        vPortEnterCritical();
+    }
 }
 
 void ExitCriticalSection(void)
 {
-    taskEXIT_CRITICAL();
+    if(IS_IRQ())
+    {
+        MODBUS_DEBUG("ExitCriticalSection called by interrupt");
+        assert_param(0);
+    }else
+    {
+        vPortExitCritical();
+    }
 }
 
+#if 0
 /*put  bytes in buff*/
 void Put_in_fifo(Serial_fifo *buff, uint8_t *putdata, int length)
 {
@@ -88,8 +105,10 @@ int Get_from_fifo(Serial_fifo *buff, uint8_t *getdata, int length)
     }
     return size - length;
 }
+#endif
+
 /*判断是否进入在中断中*/
-#ifndef IS_IRQ()
+#ifndef IS_IRQ
 extern __asm uint32_t vPortGetIPSR(void); //调用FreeRTOS API
 __inline BOOL IS_IRQ(void) //使用内联函数提高速度
 {

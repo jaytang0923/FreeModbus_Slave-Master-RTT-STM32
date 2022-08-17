@@ -18,15 +18,16 @@
  *
  * File: $Id: portserial.c,v 1.60 2013/08/13 15:07:05 Armink $
  */
-
+#include "mhscpu_uart.h"
+#include "serial.h"
+#include "cmsis_os2.h"
 #include "port.h"
 
 /* ----------------------- Modbus includes ----------------------------------*/
 #include "mb.h"
 #include "mbport.h"
-#include "serial.h"
-#include "debug.h"
 
+#include "debug.h"
 /* ----------------------- Static variables ---------------------------------*/
 /* software simulation serial transmit IRQ handler thread */
 
@@ -38,7 +39,7 @@ void Slave_RxCpltCallback(void);
 /*
  * Serial FIFO mode
  */
-static uint8_t s_ucSerialID = -1;
+static UART_TypeDef *s_ucSerialID;
 
 /* ----------------------- Defines ------------------------------------------*/
 /* serial transmit event */
@@ -65,9 +66,21 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
      * set 485 mode receive and transmit control IO
      * @note MODBUS_SLAVE_RT_CONTROL_PIN_INDEX need be defined by user
      */
-    s_ucSerialID = ucPORT;
+    if (ucPORT == 0)
+    {
+        s_ucSerialID = UART0;
+    }
+    else if (ucPORT == 1)
+    {
+        s_ucSerialID = UART1;
+    }
+    else if (ucPORT == 2)
+    {
+        s_ucSerialID = UART2;
+    }
+
     serialRegisterCallback(s_ucSerialID, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
-    serialinit(s_ucSerialID, 115200);
+    serialOpen(s_ucSerialID, 115200);
     /* software initialize */
     event_serial = osEventFlagsNew(NULL); //????
     assert_param(event_serial);
@@ -87,14 +100,14 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     if (xRxEnable)
     {
         /* enable RX interrupt */
-        endisSerialRecvIRQ(0, 1);
+        endisSerialRecvIRQ(s_ucSerialID, 1);
         /* switch 485 to receive mode */
     }
     else
     {
         /* switch 485 to transmit mode */
         /* disable RX interrupt */
-        endisSerialRecvIRQ(0, 0);
+        endisSerialRecvIRQ(s_ucSerialID, 0);
     }
 
     if (xTxEnable)
@@ -111,7 +124,7 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 
 void vMBPortClose(void)
 {
-    serialclose(s_ucSerialID);
+    serialClose(s_ucSerialID);
 }
 /*Send a byte*/
 BOOL xMBPortSerialPutByte(CHAR ucByte)
