@@ -36,7 +36,11 @@ BOOL xMBPortEventInit(void)
 
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
-    osEventFlagsSet(xSlaveOsEvent, eEvent);
+    uint32_t set = osEventFlagsSet(xSlaveOsEvent, eEvent);
+    if(set & osFlagsError)
+    {
+        err("error: osEventFlagsSet %x %x", set, osEventFlagsGet(xSlaveOsEvent));
+    }
     return TRUE;
 }
 
