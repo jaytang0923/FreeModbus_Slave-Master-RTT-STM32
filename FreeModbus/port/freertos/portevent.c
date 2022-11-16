@@ -25,18 +25,22 @@
 
 
 /* ----------------------- Variables ----------------------------------------*/
-static osEventFlagsId_t xSlaveOsEvent;
+static osThreadId_t xSlaveThreadId;
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortEventInit(void)
 {
-    xSlaveOsEvent = osEventFlagsNew(NULL);
-    assert_param(xSlaveOsEvent);
+    xSlaveThreadId = osThreadGetId();
     return TRUE;
 }
 
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
-    osEventFlagsSet(xSlaveOsEvent, eEvent);
+    int ret = osThreadFlagsSet(xSlaveThreadId, eEvent);
+    if(ret < 0)
+    {
+        err("xMBPortEventPost error: %d", ret);
+        return FALSE;
+    }
     return TRUE;
 }
 
@@ -44,9 +48,11 @@ BOOL xMBPortEventGet(eMBEventType *eEvent)
 {
     uint32_t recvedEvent;
     /* waiting forever OS event */
-    recvedEvent = osEventFlagsWait(xSlaveOsEvent, EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT, osFlagsWaitAny,
-                                   osWaitForever);
-
+    recvedEvent = osThreadFlagsWait(EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT, osFlagsWaitAny, osWaitForever);
+    if((int)recvedEvent < 0)
+    {
+        err("xMBPortEventGet error %d", (int)recvedEvent);
+    }
     switch (recvedEvent)
     {
         case EV_READY:

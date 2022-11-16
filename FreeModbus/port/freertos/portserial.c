@@ -32,7 +32,7 @@
 /* software simulation serial transmit IRQ handler thread */
 
 /* serial event */
-static osEventFlagsId_t event_serial;
+static osThreadId_t s_TxThreadId = NULL;
 /* modbus slave serial device */
 void Slave_RxCpltCallback(void);
 
@@ -44,18 +44,18 @@ static UART_TypeDef *s_ucSerialID;
 /* ----------------------- Defines ------------------------------------------*/
 /* serial transmit event */
 #define EVENT_SERIAL_TRANS_START (1 << 0)
+#define EVENT_SERIAL_TRANS_STOP  (1 << 1)
 
 /* ----------------------- static functions ---------------------------------*/
 static void prvvUARTTxReadyISR(void);
 static void prvvUARTRxISR(void);
 static void serialSendTask(void *parameter);
 
-static osThreadId_t serialTxTask;
 static const osThreadAttr_t serialTx_attributes =
 {
     .name = "SlaveTX",
     .priority = (osPriority_t)osPriorityHigh,
-    .stack_size = 256 * 2
+    .stack_size = 256 * 4
 };
 
 /* ----------------------- Start implementation -----------------------------*/
@@ -82,10 +82,7 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
     serialRegisterCallback(s_ucSerialID, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
     serialOpen(s_ucSerialID, 115200);
     /* software initialize */
-    event_serial = osEventFlagsNew(NULL); //????
-    assert_param(event_serial);
-    serialTxTask = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
-    assert_param(serialTxTask != NULL);
+    s_TxThreadId = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
     return TRUE;
 }
 
@@ -113,12 +110,12 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     if (xTxEnable)
     {
         /* start serial transmit */
-        osEventFlagsSet(event_serial, EVENT_SERIAL_TRANS_START);
+        osThreadFlagsSet(s_TxThreadId, EVENT_SERIAL_TRANS_START);
     }
     else
     {
         /* stop serial transmit */
-        osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
+        osThreadFlagsSet(s_TxThreadId, EVENT_SERIAL_TRANS_STOP);
     }
 }
 
@@ -175,11 +172,19 @@ void prvvUARTRxISR(void)
  */
 static void serialSendTask(void *parameter)
 {
-    //uint32_t recved_event;
+    uint32_t flags, tmout = osWaitForever;
     while (1)
     {
         /* waiting for serial transmit start */
-        osEventFlagsWait(event_serial, EVENT_SERIAL_TRANS_START, osFlagsNoClear | osFlagsWaitAny, osWaitForever);
+        //FIXME: osFlagsNoClear not work
+        flags = osThreadFlagsWait(EVENT_SERIAL_TRANS_START| EVENT_SERIAL_TRANS_STOP, osFlagsNoClear | osFlagsWaitAny, tmout);
+        if(flags & EVENT_SERIAL_TRANS_STOP)
+        {
+            tmout = osWaitForever;
+            osThreadFlagsClear(EVENT_SERIAL_TRANS_START | EVENT_SERIAL_TRANS_STOP);
+            continue;
+        }
+        tmout = 0;
         /* execute modbus callback */
         prvvUARTTxReadyISR();
     }

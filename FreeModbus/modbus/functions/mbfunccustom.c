@@ -59,7 +59,7 @@ eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
     *usLen -= MIN_CUSTOM_DATALEN;
     funcid = pucFrame[MB_PDU_DATA_OFF];
     pucdata = pucFrame + MIN_CUSTOM_DATAOFT;
-    MODBUS_DEBUG(">>FuncID=%x Len=%d\n", funcid, *usLen);
+    MODBUS_DEBUG(">>ID=%x Len=%d", funcid, *usLen);
     sta = (eMBException)eExecuteCustomFunc(funcid, usLen, pucdata);
 
     if (sta)
@@ -71,7 +71,7 @@ eMBException eMBFuncCustom(UCHAR *pucFrame, USHORT *usLen)
         *usLen += MIN_CUSTOM_DATALEN; // CUSTOM_ID + FUNCTION_ID
     }
 
-    MODBUS_DEBUG("<<FuncID=%x L=%d\n", funcid, *usLen);
+    MODBUS_DEBUG("<<ID=%x L=%d", funcid, *usLen);
     return sta;
 }
 
