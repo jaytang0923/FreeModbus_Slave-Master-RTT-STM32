@@ -28,6 +28,9 @@
 
 /* ----------------------- static functions ---------------------------------*/
 void prvvTIMERExpiredISR(void);
+void timer05Init(void);
+void timer05Start(void);
+void timer05Stop(void);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
