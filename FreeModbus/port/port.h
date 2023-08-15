@@ -30,11 +30,10 @@
 #include <stdio.h>
 #include <debug.h>
 
-#define DEBUG 1
-#if DEBUG == 1
+#ifdef DEBUG_MODBUS
 #define MODBUS_DEBUG(fmt, args...)                                             \
   dbg("ModBus(%s:%d):  \t" fmt, __func__, __LINE__, ##args)
-#elif DEBUG == 0
+#else
 #define MODBUS_DEBUG(fmt, args...)                                             \
   do {                                                                         \
   } while (0)
