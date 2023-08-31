@@ -215,5 +215,6 @@ void startSerialSendTask(void)
     {
         s_TxThreadId = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
         assert_param(s_TxThreadId != NULL);
+        register_task_handle(s_TxThreadId);
     }
 }

@@ -194,21 +194,10 @@ void startMasterSendTask(void)
     if(modbusMasterTaskHandle == NULL)
     {
         event_serial = osEventFlagsNew(NULL);
-        if(event_serial == NULL)
-        {
-            err("Failed to create master event\n");
-        }else
-        {
-            dbg("master event created\n");
-        }
+        assert_param(event_serial != NULL);
         modbusMasterTaskHandle = osThreadNew(serial_soft_trans_irq, NULL, &modbusMasterTask_attributes);
-        if(modbusMasterTaskHandle == NULL)
-        {
-            err("Failed to create master send task\n");
-        }else
-        {
-            dbg("master send task created\n");
-        }
+        assert_param(modbusMasterTaskHandle != NULL);
+        register_task_handle(modbusMasterTaskHandle);
     }
 }
 #endif
