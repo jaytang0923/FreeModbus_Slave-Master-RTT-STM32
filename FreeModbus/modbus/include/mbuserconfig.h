@@ -27,10 +27,16 @@ extern "C"{
 #endif
 #endif /* __cplusplus */
 
-#define MB_MASTER_ENABLED               0
+#define MB_MASTER_ENABLED               1
 
-#define MB_SLAVE_ENABLED                0
+#define MB_SLAVE_ENABLED                1
 
+#if MB_MASTER_ENABLED == 1 && MB_SLAVE_ENABLED == 1
+    #define MB_MASTER_SLAVE_AIO                1
+    #define DEBUG_MODBUS
+#else
+    #define MB_MASTER_SLAVE_AIO                0
+#endif
 #ifdef __cplusplus
 #if __cplusplus
 }

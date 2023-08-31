@@ -374,8 +374,10 @@ eMBErrorCode eMBPoll(void)
                     if ((ucRcvAddress == ucMBAddress) || (ucRcvAddress == MB_ADDRESS_BROADCAST))
                     {
                         (void)xMBPortEventPost(EV_EXECUTE);
+                        break;
                     }
                 }
+                (void)xMBPortEventPost(EV_READY);
                 break;
 
             case EV_EXECUTE:
@@ -411,6 +413,7 @@ eMBErrorCode eMBPoll(void)
                 break;
 
             case EV_FRAME_SENT:
+                (void)xMBPortEventPost(EV_READY);
                 break;
         }
     }

@@ -31,11 +31,12 @@
 /* ----------------------- Variables ----------------------------------------*/
 static USHORT usT35TimeOut50us = 5; //1750us need
 static void prvvTIMERExpiredISR(void);
-static void timer_timeout_ind(void *parameter);
 
 /* ----------------------- static functions ---------------------------------*/
 static void prvvTIMERExpiredISR(void);
-
+void modbusMasterTimInit(void);
+void modbusMasterTimStart(uint32_t tmoutms);
+void modbusMasterTimStop(void);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBMasterPortTimersInit(USHORT usTimeOut50us)
 {
@@ -95,14 +96,12 @@ void vMBMasterPortTimersRespondTimeoutEnable()
 #else
     /* Set current timer mode, don't change it.*/
     vMBMasterSetCurTimerMode(MB_TMODE_RESPOND_TIMEOUT);
-
-    modbusMasterTimStart(MB_MASTER_TIMEOUT_MS_RESPOND);
+    modbusMasterTimStart(MB_MASTER_TIMEOUT_MS_RESPOND*2);
 #endif
 }
 
 void vMBMasterPortTimersDisable()
 {
-    //rt_timer_stop(&timer);
     modbusMasterTimStop();
 }
 
@@ -110,10 +109,5 @@ void prvvTIMERExpiredISR4Master(void)
 {
     (void) pxMBMasterPortCBTimerExpired();
 }
-
-//static void timer_timeout_ind(void* parameter)
-//{
-//    prvvTIMERExpiredISR();
-//}
 
 #endif

@@ -35,7 +35,7 @@
 static osThreadId_t s_TxThreadId = NULL;
 /* modbus slave serial device */
 void Slave_RxCpltCallback(void);
-
+void startSerialSendTask(void);
 /*
  * Serial FIFO mode
  */
@@ -77,12 +77,15 @@ BOOL xMBPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
     else if (ucPORT == 2)
     {
         s_ucSerialID = UART2;
+    }else
+    {
+        return FALSE;
     }
 
     serialRegisterCallback(s_ucSerialID, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
-    serialOpen(s_ucSerialID, 115200);
+    serialOpen(s_ucSerialID, ulBaudRate);
     /* software initialize */
-    s_TxThreadId = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
+    // startSerialSendTask();
     return TRUE;
 }
 
@@ -93,7 +96,9 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
     {
         MODBUS_DEBUG("STOP MODBUS\n");
     }
-
+#if MB_MASTER_SLAVE_AIO
+    serialRegisterCallback(s_ucSerialID, HAL_UART_RX_COMPLETE_CB_ID, Slave_RxCpltCallback);
+#endif
     if (xRxEnable)
     {
         /* enable RX interrupt */
@@ -121,7 +126,10 @@ void vMBPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 
 void vMBPortClose(void)
 {
+#if MB_MASTER_SLAVE_AIO
+#else
     serialClose(s_ucSerialID);
+#endif
 }
 /*Send a byte*/
 BOOL xMBPortSerialPutByte(CHAR ucByte)
@@ -199,4 +207,13 @@ static void serialSendTask(void *parameter)
 void Slave_RxCpltCallback(void)
 {
     prvvUARTRxISR();
+}
+
+void startSerialSendTask(void)
+{
+    if(s_TxThreadId == NULL)
+    {
+        s_TxThreadId = osThreadNew(serialSendTask, NULL, &serialTx_attributes);
+        assert_param(s_TxThreadId != NULL);
+    }
 }

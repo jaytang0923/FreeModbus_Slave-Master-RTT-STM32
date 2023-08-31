@@ -28,24 +28,24 @@
 
 /* ----------------------- static functions ---------------------------------*/
 void prvvTIMERExpiredISR(void);
-void timer05Init(void);
-void timer05Start(void);
-void timer05Stop(void);
+void modbusSlaveTimInit(void);
+void modbusSlaveTimStart(uint32_t tmoutms);
+void modbusSlaveTimStop(void);
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBPortTimersInit(USHORT usTim1Timerout50us)
 {
-    timer05Init();
+    modbusSlaveTimInit();
     return TRUE;
 }
 
 void vMBPortTimersEnable()
 {
-    timer05Start();
+    modbusSlaveTimStart(4);
 }
 
 void vMBPortTimersDisable()
 {
-    timer05Stop();
+    modbusSlaveTimStop();
 }
 
 void prvvTIMERExpiredISR(void)

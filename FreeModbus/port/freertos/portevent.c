@@ -36,25 +36,30 @@ BOOL xMBPortEventInit(void)
 BOOL xMBPortEventPost(eMBEventType eEvent)
 {
     int ret = osThreadFlagsSet(xSlaveThreadId, eEvent);
-    if(ret < 0)
-    {
+
+    if (ret < 0) {
         err("xMBPortEventPost error: %d", ret);
         return FALSE;
     }
+
     return TRUE;
 }
+
+#define EV_EXIT     (1<<4)
+static BOOL s_slave_idle = FALSE;
+static BOOL s_slave_exit = FALSE;
 
 BOOL xMBPortEventGet(eMBEventType *eEvent)
 {
     uint32_t recvedEvent;
     /* waiting forever OS event */
-    recvedEvent = osThreadFlagsWait(EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT, osFlagsWaitAny, osWaitForever);
-    if((int)recvedEvent < 0)
-    {
+    recvedEvent = osThreadFlagsWait(EV_READY | EV_FRAME_RECEIVED | EV_EXECUTE | EV_FRAME_SENT | EV_EXIT, osFlagsWaitAny, osWaitForever);
+
+    if ((int)recvedEvent < 0) {
         err("xMBPortEventGet error %d", (int)recvedEvent);
     }
-    switch (recvedEvent)
-    {
+
+    switch (recvedEvent) {
         case EV_READY:
             *eEvent = EV_READY;
             break;
@@ -70,7 +75,38 @@ BOOL xMBPortEventGet(eMBEventType *eEvent)
         case EV_FRAME_SENT:
             *eEvent = EV_FRAME_SENT;
             break;
+
+        case EV_EXIT:
+            *eEvent = EV_EXIT;
+
+            if (s_slave_idle == TRUE) {
+                s_slave_exit = TRUE;
+            }
+
+            break;
+    }
+
+    if (recvedEvent == EV_READY) {
+        s_slave_idle = TRUE;
+    } else {
+        s_slave_idle = FALSE;
     }
 
     return TRUE;
+}
+
+void vMBSlaveInit(void)
+{
+    s_slave_idle = FALSE;
+    s_slave_exit = FALSE;
+}
+
+BOOL xMBPortEventExit(void)
+{
+    return s_slave_exit;
+}
+
+BOOL xMBPortEventSetExit(void)
+{
+    return xMBPortEventPost(EV_EXIT);
 }

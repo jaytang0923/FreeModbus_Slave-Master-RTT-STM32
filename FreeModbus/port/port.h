@@ -40,7 +40,7 @@
 #endif
 
 //#define IS_IRQ_MODE()             (__get_IPSR() != 0U)
-#define assert_param(expr) if(expr == 0){assert_failed((uint8_t *)__FILE__, __LINE__);}
+#define assert_param(expr) if((expr) == 0){assert_failed((uint8_t *)__FILE__, __LINE__);}
 //void assert_failed(uint8_t* file, uint32_t line);
 
 typedef struct _serial_fifo {

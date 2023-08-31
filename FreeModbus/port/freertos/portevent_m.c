@@ -27,11 +27,14 @@
 
 #if MB_MASTER_RTU_ENABLED > 0 || MB_MASTER_ASCII_ENABLED > 0
 
-#define dbg(x...) MODBUS_DEBUG(x)
+#define EV_MASTER_EXIT     (1<<9)
+
 /* ----------------------- Defines ------------------------------------------*/
 /* ----------------------- Variables ----------------------------------------*/
 static  osEventFlagsId_t xMasterOsEvent;
 static osSemaphoreId_t xMasterRunRes;
+static BOOL bMasterExit = FALSE;
+
 /* ----------------------- Start implementation -----------------------------*/
 BOOL xMBMasterPortEventInit(void)
 {
@@ -62,7 +65,7 @@ xMBMasterPortEventGet(eMBMasterEventType *eEvent)
 
     recvedEvent = osEventFlagsWait(xMasterOsEvent,
                                    EV_MASTER_READY | EV_MASTER_FRAME_RECEIVED | EV_MASTER_EXECUTE |
-                                   EV_MASTER_FRAME_SENT | EV_MASTER_ERROR_PROCESS,
+                                   EV_MASTER_FRAME_SENT | EV_MASTER_ERROR_PROCESS | EV_MASTER_EXIT,
                                    osFlagsWaitAny, osWaitForever);
 #endif
     /* the enum type couldn't convert to int type */
@@ -83,6 +86,23 @@ xMBMasterPortEventGet(eMBMasterEventType *eEvent)
         case EV_MASTER_ERROR_PROCESS:
             *eEvent = EV_MASTER_ERROR_PROCESS;
             break;
+        case EV_MASTER_EXIT:
+            *eEvent = EV_MASTER_EXIT;
+            break;
+    }
+    //NOTE: to fixed slave send serial data during idle.
+    if(vMBMasterRunResIdle() == TRUE)
+    {
+        if(recvedEvent & (EV_MASTER_FRAME_RECEIVED | EV_MASTER_EXECUTE | EV_MASTER_ERROR_PROCESS))
+        {
+            warn("ignore event %x during master IDLE", recvedEvent);
+            *eEvent = 0;
+        }else if(recvedEvent == EV_MASTER_EXIT)
+        {
+            bMasterExit = TRUE;
+        }
+    }else{
+        bMasterExit = FALSE;
     }
     return TRUE;
 }
@@ -110,11 +130,7 @@ BOOL xMBMasterRunResTake(LONG lTimeOut)
     /*If waiting time is -1 .It will wait forever */
     //return rt_sem_take(&xMasterRunRes, lTimeOut) ? FALSE : TRUE ;
     osStatus_t sta = osSemaphoreAcquire(xMasterRunRes, (uint32_t)lTimeOut);
-    if (sta != osOK)
-    {
-        printf("Err:take sta %d\n", sta);
-        return FALSE;
-    }
+    assert_param(sta == osOK);
     return TRUE;
 }
 
@@ -127,8 +143,14 @@ void vMBMasterRunResRelease(void)
 {
     /* release resource */
     //rt_sem_release(&xMasterRunRes);
+    uint32_t cnt = osSemaphoreGetCount(xMasterRunRes);
     osStatus_t sta = osSemaphoreRelease(xMasterRunRes);
     assert_param(sta == osOK);
+}
+
+BOOL vMBMasterRunResIdle(void)
+{
+    return osSemaphoreGetCount(xMasterRunRes) ? TRUE : FALSE;
 }
 
 /**
@@ -275,6 +297,33 @@ eMBMasterReqErrCode eMBMasterWaitRequestFinish(void)
         }
     }
     return eErrStatus;
+}
+
+void vMBMasterInit(void)
+{
+    bMasterExit = FALSE;
+}
+
+void vMBMasterSendExit(void)
+{
+    if(vMBMasterRunResIdle() == TRUE)
+    {
+        uint32_t ret = osEventFlagsSet(xMasterOsEvent, EV_MASTER_EXIT);
+        dbg("send master exit cmd");
+    }else
+    {
+        err("master busy");
+    }
+}
+
+BOOL bMBMasterIfExit(void)
+{
+    if(vMBMasterRunResIdle() == TRUE)
+    {
+        //already get exit event
+        return bMasterExit;
+    }
+    return FALSE;
 }
 
 #endif

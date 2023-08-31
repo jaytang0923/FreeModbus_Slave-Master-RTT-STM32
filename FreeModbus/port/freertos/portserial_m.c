@@ -18,7 +18,7 @@
  *
  * File: $Id: portserial_m.c,v 1.60 2013/08/13 15:07:05 Armink add Master Functions $
  */
-
+#include "mhscpu_uart.h"
 #include "port.h"
 
 /* ----------------------- Modbus includes ----------------------------------*/
@@ -46,107 +46,38 @@ static void prvvUARTTxReadyISR(void);
 static void prvvUARTRxISR(void);
 static void serial_soft_trans_irq(void *parameter);
 static void Master_RxCpltCallback(void);
+void startMasterSendTask(void);
 
-osThreadId_t modbusMasterTaskHandle;
+static UART_TypeDef *s_ucSerialID_m;
+
+osThreadId_t modbusMasterTaskHandle = NULL;
 static const osThreadAttr_t modbusMasterTask_attributes =
 {
-    .name = "master uart trans",
+    .name = "MODBUS M-TX",
     .priority = (osPriority_t)osPriorityHigh,
     .stack_size = 256 * 4
 };
 
 /* ----------------------- Start implementation -----------------------------*/
-BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits,
-                             eMBParity eParity)
+BOOL xMBMasterPortSerialInit(UCHAR ucPORT, ULONG ulBaudRate, UCHAR ucDataBits, eMBParity eParity)
 {
-#if 0
-    /**
-     * set 485 mode receive and transmit control IO
-     * @note MODBUS_MASTER_RT_CONTROL_PIN_INDEX need be defined by user
-     */
-    rt_pin_mode(MODBUS_MASTER_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
-
-    /* set serial name */
-    if (ucPORT == 1)
+    if (ucPORT == 0)
     {
-#if defined(RT_USING_UART1) || defined(RT_USING_REMAP_UART1)
-        extern struct rt_serial_device serial1;
-        serial = &serial1;
-#endif
+        s_ucSerialID_m = UART0;
+    }
+    else if (ucPORT == 1)
+    {
+        s_ucSerialID_m = UART1;
     }
     else if (ucPORT == 2)
     {
-#if defined(RT_USING_UART2)
-        extern struct rt_serial_device serial2;
-        serial = &serial2;
-#endif
-    }
-    else if (ucPORT == 3)
-    {
-#if defined(RT_USING_UART3)
-        extern struct rt_serial_device serial3;
-        serial = &serial3;
-#endif
-    }
-    /* set serial configure parameter */
-    serial->config.baud_rate = ulBaudRate;
-    serial->config.stop_bits = STOP_BITS_1;
-    switch (eParity)
-    {
-        case MB_PAR_NONE:
-        {
-            serial->config.data_bits = DATA_BITS_8;
-            serial->config.parity = PARITY_NONE;
-            break;
-        }
-        case MB_PAR_ODD:
-        {
-            serial->config.data_bits = DATA_BITS_9;
-            serial->config.parity = PARITY_ODD;
-            break;
-        }
-        case MB_PAR_EVEN:
-        {
-            serial->config.data_bits = DATA_BITS_9;
-            serial->config.parity = PARITY_EVEN;
-            break;
-        }
-    }
-    /* set serial configure */
-    serial->ops->configure(serial, &(serial->config));
-
-    /* open serial device */
-    if (!serial->parent.open(&serial->parent,
-                             RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX))
-    {
-        serial->parent.rx_indicate = serial_rx_ind;
-    }
-    else
+        s_ucSerialID_m = UART2;
+    }else
     {
         return FALSE;
     }
-
-    /* software initialize */
-    rt_event_init(&event_serial, "master event", RT_IPC_FLAG_PRIO);
-    rt_thread_init(&thread_serial_soft_trans_irq,
-                   "master trans",
-                   serial_soft_trans_irq,
-                   RT_NULL,
-                   serial_soft_trans_irq_stack,
-                   sizeof(serial_soft_trans_irq_stack),
-                   10, 5);
-    rt_thread_startup(&thread_serial_soft_trans_irq);
-#else
-    serialRegisterCallback(0, HAL_UART_RX_COMPLETE_CB_ID, Master_RxCpltCallback);
-    serialinit(0, 115200);
-
-    event_serial = osEventFlagsNew(NULL);
-    assert_param(event_serial != NULL);
-
-    modbusMasterTaskHandle = osThreadNew(serial_soft_trans_irq, NULL, &modbusMasterTask_attributes);
-    assert_param(modbusMasterTaskHandle != NULL);
-
-#endif
+    serialRegisterCallback(s_ucSerialID_m, HAL_UART_RX_COMPLETE_CB_ID, Master_RxCpltCallback);
+    serialOpen(s_ucSerialID_m, ulBaudRate);
     return TRUE;
 }
 
@@ -154,41 +85,16 @@ void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
 {
     uint32_t recved_event;
     int ret;
-#if 0
+#if MB_MASTER_SLAVE_AIO
+    serialRegisterCallback(s_ucSerialID_m, HAL_UART_RX_COMPLETE_CB_ID, Master_RxCpltCallback);
+#endif
     if (xRxEnable)
     {
-        /* enable RX interrupt */
-        serial->ops->control(serial, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
-        /* switch 485 to receive mode */
-        rt_pin_write(MODBUS_MASTER_RT_CONTROL_PIN_INDEX, PIN_LOW);
+        endisSerialRecvIRQ(s_ucSerialID_m, 1);
     }
     else
     {
-        /* switch 485 to transmit mode */
-        rt_pin_write(MODBUS_MASTER_RT_CONTROL_PIN_INDEX, PIN_HIGH);
-        /* disable RX interrupt */
-        serial->ops->control(serial, RT_DEVICE_CTRL_CLR_INT, (void *)RT_DEVICE_FLAG_INT_RX);
-    }
-    if (xTxEnable)
-    {
-        /* start serial transmit */
-        rt_event_send(&event_serial, EVENT_SERIAL_TRANS_START);
-    }
-    else
-    {
-        /* stop serial transmit */
-        rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START,
-                      RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, 0,
-                      &recved_event);
-    }
-#else
-    if (xRxEnable)
-    {
-        endisSerialRecvIRQ(0, 1);
-    }
-    else
-    {
-        endisSerialRecvIRQ(0, 0);
+        endisSerialRecvIRQ(s_ucSerialID_m, 0);
     }
     if (xTxEnable)
     {
@@ -200,26 +106,25 @@ void vMBMasterPortSerialEnable(BOOL xRxEnable, BOOL xTxEnable)
         ret = osEventFlagsClear(event_serial, EVENT_SERIAL_TRANS_START);
 
     }
-#endif
 }
 
 void vMBMasterPortClose(void)
 {
-    //serial->parent.close(&(serial->parent));
-    serialclose(0);
+#if MB_MASTER_SLAVE_AIO
+#else
+    serialClose(s_ucSerialID_m);
+#endif
 }
 
 BOOL xMBMasterPortSerialPutByte(CHAR ucByte)
 {
-    //serial->parent.write(&(serial->parent), 0, &ucByte, 1);
-    serialputc(0, ucByte);
+    serialputc(s_ucSerialID_m, ucByte);
     return TRUE;
 }
 
 BOOL xMBMasterPortSerialGetByte(CHAR *pucByte)
 {
-    //serial->parent.read(&(serial->parent), 0, pucByte, 1);
-    int ch = serialgetc(0);
+    int ch = serialgetc(s_ucSerialID_m);
     if (ch != -1)
     {
         *pucByte = (CHAR)ch & 0xff;
@@ -258,16 +163,6 @@ static void prvvUARTRxISR(void)
 static void serial_soft_trans_irq(void *parameter)
 {
     uint32_t recved_event;
-#if 0
-    while (1)
-    {
-        /* waiting for serial transmit start */
-        rt_event_recv(&event_serial, EVENT_SERIAL_TRANS_START, RT_EVENT_FLAG_OR,
-                      RT_WAITING_FOREVER, &recved_event);
-        /* execute modbus callback */
-        prvvUARTTxReadyISR();
-    }
-#else
     while (1)
     {
         /* waiting for serial transmit start */
@@ -275,7 +170,6 @@ static void serial_soft_trans_irq(void *parameter)
         /* execute modbus callback */
         prvvUARTTxReadyISR();
     }
-#endif
 }
 
 ///**
@@ -293,5 +187,28 @@ static void serial_soft_trans_irq(void *parameter)
 void Master_RxCpltCallback(void)
 {
     prvvUARTRxISR();
+}
+
+void startMasterSendTask(void)
+{
+    if(modbusMasterTaskHandle == NULL)
+    {
+        event_serial = osEventFlagsNew(NULL);
+        if(event_serial == NULL)
+        {
+            err("Failed to create master event\n");
+        }else
+        {
+            dbg("master event created\n");
+        }
+        modbusMasterTaskHandle = osThreadNew(serial_soft_trans_irq, NULL, &modbusMasterTask_attributes);
+        if(modbusMasterTaskHandle == NULL)
+        {
+            err("Failed to create master send task\n");
+        }else
+        {
+            dbg("master send task created\n");
+        }
+    }
 }
 #endif

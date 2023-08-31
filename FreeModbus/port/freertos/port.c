@@ -22,10 +22,10 @@
 /* ----------------------- System includes --------------------------------*/
 
 /* ----------------------- Modbus includes ----------------------------------*/
+#include "FreeRTOS.h"
+#include "task.h"
 #include "port.h"
 /* ----------------------- Variables ----------------------------------------*/
-extern void vPortEnterCritical( void );
-extern void vPortExitCritical( void );
 
 /* ----------------------- Start implementation -----------------------------*/
 void EnterCriticalSection(void)
@@ -36,7 +36,7 @@ void EnterCriticalSection(void)
         assert_param(0);
     }else
     {
-        vPortEnterCritical();
+        taskENTER_CRITICAL();
     }
 }
 
@@ -48,7 +48,7 @@ void ExitCriticalSection(void)
         assert_param(0);
     }else
     {
-        vPortExitCritical();
+        taskEXIT_CRITICAL();
     }
 }
 
@@ -109,10 +109,10 @@ int Get_from_fifo(Serial_fifo *buff, uint8_t *getdata, int length)
 
 /*判断是否进入在中断中*/
 #ifndef IS_IRQ
-extern __asm uint32_t vPortGetIPSR(void); //调用FreeRTOS API
+//extern uint32_t vPortGetIPSR(void); //调用FreeRTOS API
 __inline BOOL IS_IRQ(void) //使用内联函数提高速度
 {
-    if (vPortGetIPSR())
+    if (xPortIsInsideInterrupt())
     {
         return TRUE;
     }
