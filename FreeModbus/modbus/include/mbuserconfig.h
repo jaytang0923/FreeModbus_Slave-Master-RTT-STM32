@@ -33,7 +33,7 @@ extern "C"{
 
 #if MB_MASTER_ENABLED == 1 && MB_SLAVE_ENABLED == 1
     #define MB_MASTER_SLAVE_AIO                1
-    #define DEBUG_MODBUS
+    // #define DEBUG_MODBUS
 #else
     #define MB_MASTER_SLAVE_AIO                0
 #endif

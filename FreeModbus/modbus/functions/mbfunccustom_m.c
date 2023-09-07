@@ -118,7 +118,7 @@ eMBException eMBMasterFuncCustom(UCHAR *pucFrame, USHORT *usLen)
         //copy data to user
         if(s_pucCustomResBuf != NULL && s_pusCustomResBufLen != NULL)
         {
-            memcpy(s_pucCustomResBuf, ucMBFrame + MB_PDU_REQ_DATA_OFF, *usLen - MB_PDU_SIZE_MIN);
+            memcpy(s_pucCustomResBuf, pucFrame + MB_PDU_REQ_DATA_OFF, *usLen - MB_PDU_SIZE_MIN);
             *s_pusCustomResBufLen = *usLen - MB_PDU_SIZE_MIN;
         }
     }else
